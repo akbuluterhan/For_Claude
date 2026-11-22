@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0d1f24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Vırak</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap">
+<style>
+/* Layout: one full-screen canvas (night pond) with a single overlay card for start / game over. Single dark look by design. */
+:root {
+  --night: #0d1f24;
+  --pond: #123a3a;
+  --lily: #6fbf4a;
+  --tongue: #f2708a;
+  --glow: #ffd25e;
+  --ink: #eef6e8;
+  --muted: #9fbcb1;
+  --danger: #ff5a4e;
+  --display: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--body);
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+[hidden] { display: none !important; }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+.overlay {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  padding-block: calc(env(safe-area-inset-top, 0px) + 16px) calc(env(safe-area-inset-bottom, 0px) + 16px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: rgba(6, 16, 19, 0.55);
+  backdrop-filter: blur(3px);
+}
+.card {
+  width: min(100%, 26rem);
+  display: grid; gap: 1rem;
+  padding: 1.5rem 1.25rem;
+  border-radius: 1.5rem;
+  background: rgba(18, 58, 58, 0.92);
+  border: 2px solid rgba(111, 191, 74, 0.35);
+  text-align: center;
+}
+h1 {
+  font-family: var(--display); font-weight: 700;
+  font-size: clamp(3rem, 16vw, 4.5rem); line-height: 0.9; margin: 0;
+  color: var(--lily); letter-spacing: 0.01em;
+  text-shadow: 0 4px 0 #2e6b2a;
+}
+.tag { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.rules { display: grid; gap: 0.5rem; text-align: left; margin: 0; padding: 0; list-style: none; font-size: 0.95rem; line-height: 1.35; }
+.rules li { display: grid; grid-template-columns: 2rem 1fr; align-items: center; gap: 0.5rem; }
+.rules canvas { width: 2rem; height: 2rem; }
+.rules b { color: var(--ink); }
+.rules .bad b { color: var(--danger); }
+.big { font-family: var(--display); font-size: 3rem; margin: 0; color: var(--glow); font-variant-numeric: tabular-nums; }
+.stat { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+button.play {
+  font-family: var(--display); font-weight: 700; font-size: 1.4rem;
+  padding: 0.85rem 1rem; border: 0; border-radius: 999px;
+  background: var(--lily); color: #10301a; cursor: pointer;
+  box-shadow: 0 5px 0 #2e6b2a;
+}
+button.play:active { transform: translateY(3px); box-shadow: 0 2px 0 #2e6b2a; }
+button.play:focus-visible { outline: 3px solid var(--glow); outline-offset: 3px; }
+.row { display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+.ghost { background: transparent; color: var(--muted); border: 1px solid rgba(159,188,177,0.4); border-radius: 999px; padding: 0.5rem 1rem; font-family: var(--body); font-size: 0.9rem; cursor: pointer; }
+.ghost:focus-visible { outline: 2px solid var(--glow); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="overlay" id="startScreen">
+  <div class="card">
+    <h1>Vırak</h1>
+    <p class="tag">Gölün en aç kurbağası sensin. Gece böcekleri uçuşuyor.</p>
+    <ul class="rules">
+      <li><canvas data-icon="fly" width="64" height="64"></canvas><span><b>Dokun</b> ve dilini fırlat. Sinek, güve ve yusufçukları yakala.</span></li>
+      <li><canvas data-icon="firefly" width="64" height="64"></canvas><span><b>Ateş böceği</b> çok puan ve bir can verir.</span></li>
+      <li class="bad"><canvas data-icon="wasp" width="64" height="64"></canvas><span><b>Arıyı yeme!</b> Diline batar, can kaybedersin.</span></li>
+      <li class="bad"><canvas data-icon="hornet" width="64" height="64"></canvas><span><b>Eşek arısı</b> üstüne dalar. Başka nilüfere dokunup <b>zıpla</b>.</span></li>
+    </ul>
+    <p class="stat">Açlık çubuğu boşalırsa can gider. Arka arkaya yakala, çarpan büyüsün.</p>
+    <button class="play" id="playBtn" type="button">Oyna</button>
+    <p class="stat" id="bestStart"></p>
+  </div>
+</div>
+
+<div class="overlay" id="overScreen" hidden>
+  <div class="card">
+    <h1 style="font-size:clamp(2.2rem,11vw,3rem)">Oyun bitti</h1>
+    <p class="big" id="finalScore">0</p>
+    <p class="stat" id="finalStats"></p>
+    <button class="play" id="againBtn" type="button">Tekrar oyna</button>
+  </div>
+</div>
+
+<div class="overlay" id="pauseScreen" hidden>
+  <div class="card">
+    <h1 style="font-size:clamp(2.2rem,11vw,3rem)">Mola</h1>
+    <button class="play" id="resumeBtn" type="button">Devam et</button>
+    <div class="row"><button class="ghost" id="muteBtn" type="button">Ses: açık</button><button class="ghost" id="quitBtn" type="button">Ana menü</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d");
+const $ = id => document.getElementById(id);
+
+// ---------- storage (optional) ----------
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+let best = store.get("virak.best", 0);
+let muted = store.get("virak.muted", false);
+
+// ---------- audio ----------
+let ac = null;
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function tone(f1, f2, dur, type = "sine", vol = 0.15, delay = 0) {
+  if (muted || !ac) return;
+  const t = ac.currentTime + delay;
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f1, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + dur);
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+const sfx = {
+  shoot: () => tone(500, 900, 0.08, "triangle", 0.08),
+  gulp: () => { tone(300, 120, 0.12, "sine", 0.2); tone(180, 90, 0.1, "sine", 0.15, 0.08); },
+  gold: () => { [660, 880, 1100, 1320].forEach((f, i) => tone(f, f * 1.01, 0.12, "triangle", 0.1, i * 0.07)); },
+  sting: () => { tone(220, 60, 0.35, "sawtooth", 0.15); },
+  hop: () => tone(200, 420, 0.12, "sine", 0.12),
+  miss: () => tone(260, 200, 0.08, "sine", 0.05),
+  warn: () => tone(880, 860, 0.1, "square", 0.04),
+  croak: () => { tone(140, 90, 0.18, "sawtooth", 0.12); tone(150, 95, 0.18, "sawtooth", 0.12, 0.22); },
+  level: () => { [523, 659, 784].forEach((f, i) => tone(f, f, 0.15, "triangle", 0.1, i * 0.1)); }
+};
+
+// ---------- sizing ----------
+let W = 0, H = 0, DPR = 1, S = 1; // S = base unit
+let waterY = 0, padY = 0, pads = [];
+let stars = [], reeds = [];
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2.5);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  S = Math.min(W, H * 0.62) / 400;
+  waterY = H * 0.74;
+  padY = H - Math.max(70 * S, H * 0.11) - safeBottom();
+  pads = [0.18, 0.5, 0.82].map(f => ({ x: W * f, y: padY }));
+  stars = Array.from({ length: Math.round(W * H / 9000) }, () => ({ x: Math.random() * W, y: Math.random() * waterY * 0.7, r: Math.random() * 1.3 + 0.3, p: Math.random() * 6 }));
+  reeds = Array.from({ length: Math.round(W / 22) }, (_, i) => ({ x: (i + Math.random()) * 22, h: (40 + Math.random() * 70) * S, b: Math.random() * 6 }));
+  if (frog) { frog.x = pads[frog.pad].x; }
+}
+const probe = document.createElement("div");
+probe.style.cssText = "position:fixed;left:0;top:0;width:0;visibility:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)";
+document.body.appendChild(probe);
+function safeBottom() { return parseFloat(getComputedStyle(probe).paddingBottom) || 0; }
+function safeTop() { return parseFloat(getComputedStyle(probe).paddingTop) || 0; }
+
+// ---------- game state ----------
+let state = "menu"; // menu | play | pause | over
+let frog, tongue, bugs, divers, fx, texts;
+let score, lives, hunger, level, caught, combo, bestCombo, spawnT, diverT, shake, flash, time;
+
+function newGame() {
+  frog = { pad: 1, x: pads[1].x, hopFrom: 1, hopT: 1, stun: 0, inv: 0, blink: 0, gulp: 0 };
+  tongue = { st: "idle", len: 0, max: 0, dx: 0, dy: -1, bug: null };
+  bugs = []; divers = []; fx = []; texts = [];
+  score = 0; lives = 3; hunger = 100; level = 1; caught = 0; combo = 0; bestCombo = 0;
+  spawnT = 0.5; diverT = 6; shake = 0; flash = 0; time = 0;
+  for (let i = 0; i < 4; i++) spawnBug("fly");
+}
+
+const TYPES = {
+  fly:       { r: 9,  pts: 10, food: 12, spd: [70, 110], col: "#2b2b2b" },
+  moth:      { r: 12, pts: 15, food: 18, spd: [45, 70],  col: "#d9c6a0" },
+  dragonfly: { r: 13, pts: 30, food: 20, spd: [160, 220], col: "#3fd0c9" },
+  firefly:   { r: 10, pts: 50, food: 25, spd: [60, 90],  col: "#ffd25e" },
+  wasp:      { r: 11, pts: 0,  food: 0,  spd: [80, 120], col: "#f2c230", bad: true }
+};
+
+function pickType() {
+  const r = Math.random();
+  const waspP = Math.min(0.08 + level * 0.025, 0.3);
+  if (r < waspP) return "wasp";
+  if (r < waspP + 0.035) return "firefly";
+  if (level >= 2 && r < waspP + 0.035 + Math.min(0.08 + level * 0.02, 0.22)) return "dragonfly";
+  return Math.random() < 0.65 ? "fly" : "moth";
+}
+
+function spawnBug(kind) {
+  kind = kind || pickType();
+  const t = TYPES[kind];
+  const left = Math.random() < 0.5;
+  const top = safeTop() + 115 * Math.max(S, 0.8), bot = waterY - 50 * S;
+  const sp = (t.spd[0] + Math.random() * (t.spd[1] - t.spd[0])) * S * (1 + (level - 1) * 0.06);
+  bugs.push({
+    kind, t, r: t.r * S * 1.15,
+    x: left ? -20 : W + 20, y: top + Math.random() * (bot - top),
+    vx: (left ? 1 : -1) * sp, vy: (Math.random() - 0.5) * sp * 0.5,
+    sp, life: 9 + Math.random() * 6, age: 0, ph: Math.random() * 6, dart: 0, caught: false, face: left ? 1 : -1
+  });
+}
+
+function spawnDiver() {
+  const target = Math.random() < 0.7 ? frog.pad : Math.floor(Math.random() * 3);
+  divers.push({ pad: target, x: pads[target].x, y: -40, st: "in", t: 0, warn: Math.max(0.75, 1.4 - level * 0.06) });
+}
+
+// ---------- input ----------
+function onPointer(e) {
+  e.preventDefault();
+  audio();
+  if (state !== "play") return;
+  const x = e.clientX, y = e.clientY;
+  // pause button
+  if (x > W - 64 && y < 64 + safeTop()) { pause(); return; }
+  // tap a pad -> hop
+  if (y > waterY + 10 * S) {
+    let nearest = 0, d = 1e9;
+    pads.forEach((p, i) => { const dd = Math.abs(p.x - x); if (dd < d) { d = dd; nearest = i; } });
+    if (nearest !== frog.pad) hop(nearest);
+    else fire(x, y);
+    return;
+  }
+  fire(x, y);
+}
+cv.addEventListener("pointerdown", onPointer, { passive: false });
+
+function mouth() {
+  const hopK = frogHopArc();
+  return { x: frog.x, y: padY - 26 * S - hopK };
+}
+function fire(x, y) {
+  if (tongue.st !== "idle" || frog.stun > 0 || frog.hopT < 1) return;
+  const m = mouth();
+  let dx = x - m.x, dy = y - m.y;
+  if (dy > -10) dy = -10; // always up-ish
+  const d = Math.hypot(dx, dy);
+  tongue.dx = dx / d; tongue.dy = dy / d;
+  tongue.max = Math.min(Math.max(d, 60 * S), H * 0.9);
+  tongue.st = "out"; tongue.len = 0; tongue.bug = null;
+  sfx.shoot();
+}
+function hop(i) {
+  if (frog.hopT < 1 || frog.stun > 0) return;
+  if (tongue.st !== "idle") { tongue.st = "back"; }
+  frog.hopFrom = frog.pad; frog.pad = i; frog.hopT = 0;
+  sfx.hop();
+}
+function frogHopArc() { return frog.hopT < 1 ? Math.sin(frog.hopT * Math.PI) * 55 * S : 0; }
+
+// ---------- update ----------
+function hurt(reason) {
+  if (frog.inv > 0) return;
+  lives--; combo = 0;
+  frog.inv = 1.4; frog.stun = 0.6; shake = 0.4; flash = 0.35;
+  sfx.sting();
+  addText(frog.x, padY - 90 * S, reason, "#ff5a4e", 1.3);
+  if (navigator.vibrate) { try { navigator.vibrate(120); } catch (e) {} }
+  if (lives <= 0) endGame();
+}
+
+function addText(x, y, s, col, size = 1) { texts.push({ x, y, s, col, size, t: 0 }); }
+function burst(x, y, col, n = 10) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = (40 + Math.random() * 120) * S;
+    fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: 0.5 + Math.random() * 0.3, col });
+  }
+}
+
+function eat(b) {
+  const t = b.t;
+  if (t.bad) { hurt("Ayy! Arı!"); return; }
+  combo++; bestCombo = Math.max(bestCombo, combo); caught++;
+  const mult = Math.min(1 + Math.floor(combo / 3), 5);
+  const pts = t.pts * mult;
+  score += pts;
+  hunger = Math.min(100, hunger + t.food);
+  frog.gulp = 0.3;
+  if (b.kind === "firefly") {
+    sfx.gold();
+    if (lives < 5) { lives++; addText(frog.x, padY - 120 * S, "+1 can", "#ffd25e", 1.1); }
+  } else sfx.gulp();
+  addText(frog.x + 30 * S, padY - 80 * S, "+" + pts + (mult > 1 ? "  x" + mult : ""), mult > 1 ? "#ffd25e" : "#eef6e8");
+  const newLevel = 1 + Math.floor(caught / 12);
+  if (newLevel > level) { level = newLevel; sfx.level(); addText(W / 2, H * 0.35, "Seviye " + level, "#6fbf4a", 2); }
+}
+
+function update(dt) {
+  time += dt;
+  if (shake > 0) shake -= dt;
+  if (flash > 0) flash -= dt;
+  frog.inv = Math.max(0, frog.inv - dt);
+  frog.stun = Math.max(0, frog.stun - dt);
+  frog.gulp = Math.max(0, frog.gulp - dt);
+  frog.blink -= dt; if (frog.blink < -3 - Math.random() * 3) frog.blink = 0.15;
+
+  // hop
+  if (frog.hopT < 1) {
+    frog.hopT = Math.min(1, frog.hopT + dt / 0.32);
+    const a = pads[frog.hopFrom].x, b = pads[frog.pad].x;
+    const k = frog.hopT; frog.x = a + (b - a) * (k * k * (3 - 2 * k));
+    if (frog.hopT === 1) burst(frog.x, padY + 6 * S, "rgba(160,220,230,0.8)", 8);
+  } else frog.x = pads[frog.pad].x;
+
+  // hunger
+  hunger -= dt * (3.2 + level * 0.45);
+  if (hunger <= 0) { hunger = 55; frog.inv = 0; hurt("Çok açım!"); }
+
+  // tongue
+  const m = mouth();
+  if (tongue.st === "out") {
+    tongue.len += 1900 * S * dt;
+    const tx = m.x + tongue.dx * tongue.len, ty = m.y + tongue.dy * tongue.len;
+    for (const b of bugs) {
+      if (b.caught) continue;
+      if (Math.hypot(b.x - tx, b.y - ty) < b.r + 14 * S) { b.caught = true; tongue.bug = b; tongue.st = "back"; break; }
+    }
+    if (tongue.st === "out") for (const d of divers) {
+      if (Math.hypot(d.x - tx, d.y - ty) < 20 * S) { tongue.st = "back"; hurt("Eşek arısı!"); break; }
+    }
+    if (tongue.len >= tongue.max || ty < 0 || tx < -20 || tx > W + 20) {
+      if (tongue.st === "out") tongue.st = "back";
+    }
+  } else if (tongue.st === "back") {
+    tongue.len -= 2300 * S * dt;
+    if (tongue.bug) { tongue.bug.x = m.x + tongue.dx * Math.max(tongue.len, 0); tongue.bug.y = m.y + tongue.dy * Math.max(tongue.len, 0); }
+    if (tongue.len <= 0) {
+      tongue.len = 0; tongue.st = "idle";
+      if (tongue.bug) { eat(tongue.bug); bugs.splice(bugs.indexOf(tongue.bug), 1); tongue.bug = null; }
+      else { if (combo > 0) addText(frog.x, padY - 80 * S, "ıska", "#9fbcb1", 0.8); combo = 0; sfx.miss(); }
+    }
+  }
+
+  // spawn
+  spawnT -= dt;
+  const maxBugs = 6 + Math.min(level, 8);
+  if (spawnT <= 0) { if (bugs.length < maxBugs) spawnBug(); spawnT = Math.max(0.35, 1.25 - level * 0.08) * (0.6 + Math.random() * 0.8); }
+  if (level >= 2) {
+    diverT -= dt;
+    if (diverT <= 0) { spawnDiver(); if (level >= 5 && Math.random() < 0.35) spawnDiver(); diverT = Math.max(2.2, 7 - level * 0.5) * (0.7 + Math.random() * 0.6); }
+  }
+
+  // bugs
+  const top = safeTop() + 105 * Math.max(S, 0.8), bot = waterY - 40 * S;
+  for (let i = bugs.length - 1; i >= 0; i--) {
+    const b = bugs[i];
+    if (b.caught) continue;
+    b.age += dt; b.ph += dt * 10;
+    if (b.kind === "dragonfly") {
+      b.dart -= dt;
+      if (b.dart <= 0) {
+        const a = Math.random() * Math.PI * 2;
+        const v = Math.random() < 0.35 ? 0 : b.sp;
+        b.vx = Math.cos(a) * v; b.vy = Math.sin(a) * v * 0.6; b.dart = 0.3 + Math.random() * 0.7;
+      }
+    } else {
+      const j = b.kind === "moth" ? 2.2 : 3.5;
+      b.vx += (Math.random() - 0.5) * b.sp * j * dt;
+      b.vy += (Math.random() - 0.5) * b.sp * j * dt + Math.sin(b.ph * 0.3) * b.sp * 0.4 * dt;
+      const v = Math.hypot(b.vx, b.vy) || 1;
+      if (v > b.sp) { b.vx *= b.sp / v; b.vy *= b.sp / v; }
+      if (v < b.sp * 0.4) { b.vx *= 1.1; b.vy *= 1.1; }
+    }
+    if (b.age > b.life) { b.vx += Math.sign(b.x - W / 2 || 1) * b.sp * dt * 2; }
+    else {
+      if (b.x < 15 && b.vx < 0) b.vx = Math.abs(b.vx);
+      if (b.x > W - 15 && b.vx > 0 && b.age > 1) b.vx = -Math.abs(b.vx);
+      if (b.x < 15 && b.age < 1) b.vx = Math.abs(b.vx) + 10;
+    }
+    if (b.y < top) b.vy = Math.abs(b.vy) + 5;
+    if (b.y > bot) b.vy = -Math.abs(b.vy) - 5;
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    if (Math.abs(b.vx) > 3) b.face = Math.sign(b.vx);
+    if (b.age > b.life && (b.x < -40 || b.x > W + 40)) bugs.splice(i, 1);
+  }
+
+  // divers
+  for (let i = divers.length - 1; i >= 0; i--) {
+    const d = divers[i];
+    d.t += dt;
+    const hoverY = safeTop() + 120 * Math.max(S, 0.8);
+    if (d.st === "in") {
+      d.y += (hoverY - d.y) * Math.min(1, dt * 6);
+      d.x = pads[d.pad].x + Math.sin(d.t * 9) * 8 * S;
+      if (Math.floor(d.t * 4) !== Math.floor((d.t - dt) * 4)) sfx.warn();
+      if (d.t > d.warn) { d.st = "dive"; d.t = 0; d.x = pads[d.pad].x; }
+    } else if (d.st === "dive") {
+      d.y += (900 + level * 40) * S * dt;
+      if (d.y >= padY - 30 * S) {
+        d.st = "out"; d.t = 0;
+        burst(d.x, padY, "rgba(160,220,230,0.9)", 14);
+        if (Math.abs(frog.x - d.x) < 45 * S) hurt("Eşek arısı!");
+        else { score += 5; addText(d.x, padY - 60 * S, "kaçtın!", "#9fbcb1", 0.9); }
+      }
+    } else {
+      d.y -= 600 * S * dt; d.x += 200 * S * dt * (d.pad === 0 ? 1 : -1);
+      if (d.y < -60) divers.splice(i, 1);
+    }
+  }
+
+  // fx
+  for (let i = fx.length - 1; i >= 0; i--) { const p = fx[i]; p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 200 * S * dt; if (p.t > p.life) fx.splice(i, 1); }
+  for (let i = texts.length - 1; i >= 0; i--) { const t = texts[i]; t.t += dt; t.y -= 40 * S * dt; if (t.t > 1.1) texts.splice(i, 1); }
+}
+
+// ---------- drawing ----------
+function drawBackground() {
+  const g = ctx.createLinearGradient(0, 0, 0, waterY);
+  g.addColorStop(0, "#081419"); g.addColorStop(0.6, "#10303a"); g.addColorStop(1, "#1d4a4a");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, waterY + 1);
+  for (const s of stars) { ctx.globalAlpha = 0.4 + 0.4 * Math.sin(time * 1.5 + s.p); ctx.fillStyle = "#eef6e8"; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  // moon
+  const mx = W * 0.8, my = H * 0.13, mr = 26 * S;
+  const mg = ctx.createRadialGradient(mx, my, mr, mx, my, mr * 3);
+  mg.addColorStop(0, "rgba(255,240,200,0.14)"); mg.addColorStop(1, "rgba(255,240,200,0)");
+  ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, mr * 3, 0, 7); ctx.fill();
+  ctx.fillStyle = "#f6edd0"; ctx.beginPath(); ctx.arc(mx, my, mr, 0, 7); ctx.fill();
+  ctx.fillStyle = "#e4d9b8"; ctx.beginPath(); ctx.arc(mx - mr * 0.3, my - mr * 0.2, mr * 0.18, 0, 7); ctx.arc(mx + mr * 0.35, my + mr * 0.3, mr * 0.12, 0, 7); ctx.fill();
+  // far bank
+  ctx.fillStyle = "#0b2226";
+  ctx.beginPath(); ctx.moveTo(0, waterY);
+  for (let x = 0; x <= W; x += 20) ctx.lineTo(x, waterY - 18 * S - Math.sin(x * 0.012) * 10 * S - Math.sin(x * 0.031) * 6 * S);
+  ctx.lineTo(W, waterY); ctx.fill();
+  // water
+  const wg = ctx.createLinearGradient(0, waterY, 0, H);
+  wg.addColorStop(0, "#1a4a4c"); wg.addColorStop(1, "#0c2629");
+  ctx.fillStyle = wg; ctx.fillRect(0, waterY, W, H - waterY);
+  ctx.strokeStyle = "rgba(160,220,230,0.12)"; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 7; i++) {
+    const y = waterY + 10 + i * (H - waterY) / 7;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, y + Math.sin(x * 0.03 + time * 1.2 + i) * 2.5);
+    ctx.stroke();
+  }
+  // moon reflection
+  ctx.fillStyle = "rgba(246,237,208,0.12)";
+  for (let i = 0; i < 6; i++) { const y = waterY + 8 + i * 9 * S; const w = (30 - i * 3) * S * (1 + 0.2 * Math.sin(time * 2 + i)); ctx.fillRect(mx - w / 2, y, w, 3 * S); }
+  // reeds
+  ctx.strokeStyle = "#163a2c"; ctx.lineCap = "round";
+  for (const r of reeds) {
+    const sway = Math.sin(time * 1.1 + r.b) * 4 * S;
+    ctx.lineWidth = 3 * S; ctx.beginPath(); ctx.moveTo(r.x, waterY + 2); ctx.quadraticCurveTo(r.x + sway * 0.4, waterY - r.h * 0.5, r.x + sway, waterY - r.h); ctx.stroke();
+    if (r.b > 4) { ctx.fillStyle = "#3a2a1c"; ctx.beginPath(); ctx.ellipse(r.x + sway, waterY - r.h - 6 * S, 3.5 * S, 9 * S, 0, 0, 7); ctx.fill(); }
+  }
+}
+
+function drawPad(p, i) {
+  const r = 52 * S;
+  ctx.save(); ctx.translate(p.x, p.y + 4 * S + Math.sin(time * 1.5 + i) * 1.5 * S);
+  ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(0, 6 * S, r, r * 0.34, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#4e9a3a"; ctx.beginPath(); ctx.ellipse(0, 0, r, r * 0.34, 0, 0.25, Math.PI * 2 - 0.05); ctx.lineTo(0, 0); ctx.fill();
+  ctx.fillStyle = "#6fbf4a"; ctx.beginPath(); ctx.ellipse(0, -2 * S, r * 0.94, r * 0.3, 0, 0.25, Math.PI * 2 - 0.05); ctx.lineTo(0, -2 * S); ctx.fill();
+  ctx.strokeStyle = "rgba(46,107,42,0.6)"; ctx.lineWidth = 1.5;
+  for (let k = 0; k < 6; k++) { const a = 0.6 + k * 0.95; ctx.beginPath(); ctx.moveTo(0, -2 * S); ctx.lineTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.25); ctx.stroke(); }
+  ctx.restore();
+  // warning marker
+  for (const d of divers) if (d.pad === i && d.st === "in") {
+    const a = 0.4 + 0.4 * Math.sin(time * 18);
+    ctx.strokeStyle = `rgba(255,90,78,${a})`; ctx.lineWidth = 4 * S;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + 2 * S, r * 1.05, r * 0.38, 0, 0, 7); ctx.stroke();
+    ctx.setLineDash([6 * S, 8 * S]); ctx.lineWidth = 2 * S;
+    ctx.beginPath(); ctx.moveTo(p.x, d.y + 20 * S); ctx.lineTo(p.x, p.y - 40 * S); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+function drawFrog() {
+  const x = frog.x, base = padY - frogHopArc();
+  if (frog.inv > 0 && Math.floor(frog.inv * 12) % 2 === 0) ctx.globalAlpha = 0.45;
+  const s = S;
+  const squash = frog.gulp > 0 ? 1 + frog.gulp * 0.4 : (frog.hopT < 1 ? 0.92 : 1);
+  ctx.save(); ctx.translate(x, base);
+  // back legs
+  ctx.fillStyle = "#3f8a34";
+  ctx.beginPath(); ctx.ellipse(-30 * s, -6 * s, 18 * s, 10 * s, -0.3, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(30 * s, -6 * s, 18 * s, 10 * s, 0.3, 0, 7); ctx.fill();
+  // body
+  ctx.scale(squash, 1 / squash);
+  ctx.fillStyle = "#5bb043";
+  ctx.beginPath(); ctx.ellipse(0, -22 * s, 34 * s, 26 * s, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#c9e7a0";
+  ctx.beginPath(); ctx.ellipse(0, -12 * s, 22 * s, 14 * s, 0, 0, 7); ctx.fill();
+  // spots
+  ctx.fillStyle = "#3f8a34";
+  ctx.beginPath(); ctx.arc(-18 * s, -34 * s, 4 * s, 0, 7); ctx.arc(20 * s, -30 * s, 3 * s, 0, 7); ctx.arc(8 * s, -40 * s, 2.5 * s, 0, 7); ctx.fill();
+  // front feet
+  ctx.fillStyle = "#3f8a34";
+  ctx.beginPath(); ctx.ellipse(-16 * s, -1 * s, 9 * s, 4 * s, 0, 0, 7); ctx.ellipse(16 * s, -1 * s, 9 * s, 4 * s, 0, 0, 7); ctx.fill();
+  // eyes
+  const look = tongue.st !== "idle" ? { x: tongue.dx * 3 * s, y: tongue.dy * 3 * s } : { x: 0, y: -1 * s };
+  for (const ex of [-17, 17]) {
+    ctx.fillStyle = "#5bb043"; ctx.beginPath(); ctx.arc(ex * s, -46 * s, 12 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = "#f7fbef"; ctx.beginPath(); ctx.arc(ex * s, -47 * s, 9 * s, 0, 7); ctx.fill();
+    if (frog.blink > 0 || frog.stun > 0) {
+      ctx.strokeStyle = "#1d3a1a"; ctx.lineWidth = 2.5 * s;
+      ctx.beginPath();
+      if (frog.stun > 0) { ctx.moveTo(ex * s - 5 * s, -51 * s); ctx.lineTo(ex * s + 5 * s, -43 * s); ctx.moveTo(ex * s + 5 * s, -51 * s); ctx.lineTo(ex * s - 5 * s, -43 * s); }
+      else { ctx.moveTo(ex * s - 7 * s, -47 * s); ctx.lineTo(ex * s + 7 * s, -47 * s); }
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = "#14201a"; ctx.beginPath(); ctx.ellipse(ex * s + look.x, -47 * s + look.y, 4.5 * s, 5.5 * s, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex * s + look.x + 1.5 * s, -49 * s + look.y, 1.6 * s, 0, 7); ctx.fill();
+    }
+  }
+  // mouth
+  ctx.strokeStyle = "#1d3a1a"; ctx.lineWidth = 2.5 * s; ctx.lineCap = "round";
+  if (tongue.st !== "idle") {
+    ctx.fillStyle = "#7a2235"; ctx.beginPath(); ctx.ellipse(0, -26 * s, 9 * s, 5 * s, 0, 0, 7); ctx.fill();
+  } else {
+    ctx.beginPath(); ctx.moveTo(-14 * s, -28 * s); ctx.quadraticCurveTo(0, (frog.stun > 0 ? -32 : -22) * s, 14 * s, -28 * s); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+function drawTongue() {
+  if (tongue.st === "idle") return;
+  const m = mouth();
+  const tx = m.x + tongue.dx * tongue.len, ty = m.y + tongue.dy * tongue.len;
+  ctx.strokeStyle = "#c84a66"; ctx.lineCap = "round"; ctx.lineWidth = 9 * S;
+  ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+  ctx.strokeStyle = "#f2708a"; ctx.lineWidth = 6 * S;
+  ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+  ctx.fillStyle = "#f2708a"; ctx.beginPath(); ctx.arc(tx, ty, 9 * S, 0, 7); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.arc(tx - 2 * S, ty - 2 * S, 3 * S, 0, 7); ctx.fill();
+}
+
+function wings(x, y, r, ph, col, n = 1) {
+  const f = Math.abs(Math.sin(ph * 2.2));
+  ctx.fillStyle = col;
+  for (let k = 0; k < n; k++) {
+    ctx.beginPath(); ctx.ellipse(x - r * 0.3 - k * r * 0.5, y - r * 0.6 * f - r * 0.2, r * 0.75, r * 0.35 + r * 0.25 * f, -0.6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + r * 0.3 + k * r * 0.5, y - r * 0.6 * f - r * 0.2, r * 0.75, r * 0.35 + r * 0.25 * f, 0.6, 0, 7); ctx.fill();
+  }
+}
+
+function drawBug(b, cx = b.x, cy = b.y, r = b.r, ph = b.ph, face = b.face, c = ctx) {
+  const k = b.kind;
+  const prev = ctx; // allow alternative context
+  const g = c;
+  const draw = () => {
+    if (k === "fly") {
+      wingsOn(g, cx, cy, r, ph, "rgba(220,240,255,0.55)");
+      g.fillStyle = "#2b2b2b"; g.beginPath(); g.ellipse(cx, cy, r * 0.75, r * 0.55, 0, 0, 7); g.fill();
+      g.fillStyle = "#b8332c"; g.beginPath(); g.arc(cx + face * r * 0.6, cy - r * 0.1, r * 0.3, 0, 7); g.fill();
+    } else if (k === "moth") {
+      const f = Math.abs(Math.sin(ph * 1.2));
+      g.fillStyle = "#d9c6a0";
+      g.beginPath(); g.ellipse(cx - r * 0.55, cy - r * 0.1, r * 0.8, r * (0.4 + 0.4 * f), -0.4, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(cx + r * 0.55, cy - r * 0.1, r * 0.8, r * (0.4 + 0.4 * f), 0.4, 0, 7); g.fill();
+      g.fillStyle = "#a88f64"; g.beginPath(); g.arc(cx - r * 0.55, cy - r * 0.1, r * 0.2, 0, 7); g.arc(cx + r * 0.55, cy - r * 0.1, r * 0.2, 0, 7); g.fill();
+      g.fillStyle = "#6e5a3c"; g.beginPath(); g.ellipse(cx, cy, r * 0.25, r * 0.6, 0, 0, 7); g.fill();
+    } else if (k === "dragonfly") {
+      wingsOn(g, cx, cy - r * 0.1, r * 0.9, ph * 1.6, "rgba(190,250,255,0.45)", 2);
+      g.strokeStyle = "#3fd0c9"; g.lineWidth = r * 0.28; g.lineCap = "round";
+      g.beginPath(); g.moveTo(cx + face * r * 0.4, cy); g.lineTo(cx - face * r * 1.6, cy + r * 0.15); g.stroke();
+      g.fillStyle = "#1f8f9a"; g.beginPath(); g.arc(cx + face * r * 0.55, cy, r * 0.32, 0, 7); g.fill();
+    } else if (k === "firefly") {
+      const glow = 0.6 + 0.4 * Math.sin(ph * 0.6);
+      const rg = g.createRadialGradient(cx, cy + r * 0.3, 0, cx, cy + r * 0.3, r * 3);
+      rg.addColorStop(0, `rgba(255,210,94,${0.55 * glow})`); rg.addColorStop(1, "rgba(255,210,94,0)");
+      g.fillStyle = rg; g.beginPath(); g.arc(cx, cy + r * 0.3, r * 3, 0, 7); g.fill();
+      wingsOn(g, cx, cy, r * 0.8, ph, "rgba(255,255,230,0.4)");
+      g.fillStyle = "#3a3020"; g.beginPath(); g.ellipse(cx, cy - r * 0.2, r * 0.45, r * 0.4, 0, 0, 7); g.fill();
+      g.fillStyle = `rgba(255,226,120,${0.7 + 0.3 * glow})`; g.beginPath(); g.ellipse(cx, cy + r * 0.35, r * 0.5, r * 0.45, 0, 0, 7); g.fill();
+    } else if (k === "wasp" || k === "hornet") {
+      const big = k === "hornet";
+      wingsOn(g, cx, cy, r, ph * 1.4, "rgba(230,240,255,0.5)");
+      const yel = big ? "#e2552c" : "#f2c230";
+      g.save(); g.beginPath(); g.ellipse(cx - face * r * 0.15, cy, r * 0.95, r * 0.6, 0, 0, 7); g.clip();
+      g.fillStyle = yel; g.fillRect(cx - r * 1.2, cy - r, r * 2.4, r * 2);
+      g.fillStyle = "#1a1410";
+      for (let s = -1; s <= 1; s++) g.fillRect(cx - face * r * 0.15 + s * r * 0.5 - r * 0.12, cy - r, r * 0.24, r * 2);
+      g.restore();
+      g.fillStyle = "#1a1410"; g.beginPath(); g.arc(cx + face * r * 0.85, cy - r * 0.05, r * 0.38, 0, 7); g.fill();
+      g.beginPath(); g.moveTo(cx - face * r * 1.05, cy - r * 0.12); g.lineTo(cx - face * r * 1.5, cy); g.lineTo(cx - face * r * 1.05, cy + r * 0.12); g.fill();
+    }
+  };
+  draw();
+}
+function wingsOn(g, x, y, r, ph, col, n = 1) {
+  const f = Math.abs(Math.sin(ph * 2.2));
+  g.fillStyle = col;
+  for (let k = 0; k < n; k++) {
+    g.beginPath(); g.ellipse(x - r * 0.3 - k * r * 0.5, y - r * 0.6 * f - r * 0.2, r * 0.75, r * 0.35 + r * 0.25 * f, -0.6, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(x + r * 0.3 + k * r * 0.5, y - r * 0.6 * f - r * 0.2, r * 0.75, r * 0.35 + r * 0.25 * f, 0.6, 0, 7); g.fill();
+  }
+}
+
+function drawDiver(d) {
+  const r = 18 * S;
+  ctx.save();
+  if (d.st === "dive") { ctx.translate(d.x, d.y); ctx.rotate(Math.PI / 2); drawBug({ kind: "hornet" }, 0, 0, r, time * 30, 1); }
+  else drawBug({ kind: "hornet" }, d.x, d.y, r, time * 30, d.st === "out" ? (d.pad === 0 ? 1 : -1) : 1);
+  ctx.restore();
+}
+
+function heart(x, y, r, full) {
+  ctx.fillStyle = full ? "#ff5a6e" : "rgba(238,246,232,0.18)";
+  ctx.beginPath();
+  ctx.moveTo(x, y + r * 0.9);
+  ctx.bezierCurveTo(x - r * 1.4, y, x - r * 0.9, y - r * 1.1, x, y - r * 0.35);
+  ctx.bezierCurveTo(x + r * 0.9, y - r * 1.1, x + r * 1.4, y, x, y + r * 0.9);
+  ctx.fill();
+}
+
+function drawHUD() {
+  const top = 14 + safeTop();
+  const L = 16, R = W - 16;
+  ctx.textBaseline = "top";
+  ctx.fillStyle = "#eef6e8"; ctx.font = `700 ${Math.round(30 * Math.max(S, 0.8))}px Fredoka, sans-serif`;
+  ctx.textAlign = "left"; ctx.fillText(score, L, top);
+  ctx.font = `800 ${Math.round(13 * Math.max(S, 0.8))}px Nunito, sans-serif`; ctx.fillStyle = "#9fbcb1";
+  ctx.fillText("SEVİYE " + level + (combo >= 3 ? "   ·   ÇARPAN x" + Math.min(1 + Math.floor(combo / 3), 5) : ""), L, top + 36 * Math.max(S, 0.8));
+  // hearts
+  const hr = 10 * Math.max(S, 0.8);
+  for (let i = 0; i < Math.max(lives, 3); i++) heart(R - 58 - i * hr * 2.6, top + hr + 4, hr, i < lives);
+  // pause button
+  ctx.fillStyle = "rgba(238,246,232,0.8)";
+  ctx.fillRect(R - 26, top + 2, 6, 20); ctx.fillRect(R - 14, top + 2, 6, 20);
+  // hunger bar
+  const bw = Math.min(W - 32, 260 * Math.max(S, 0.8)), bx = W / 2 - bw / 2, by = top + 62 * Math.max(S, 0.8);
+  ctx.fillStyle = "rgba(0,0,0,0.35)"; roundRect(bx, by, bw, 10, 5); ctx.fill();
+  const hc = hunger > 40 ? "#6fbf4a" : hunger > 20 ? "#ffd25e" : "#ff5a4e";
+  ctx.fillStyle = hc; roundRect(bx, by, Math.max(10, bw * hunger / 100), 10, 5); ctx.fill();
+  ctx.font = `800 ${Math.round(11 * Math.max(S, 0.8))}px Nunito, sans-serif`; ctx.fillStyle = "#9fbcb1"; ctx.textAlign = "center";
+  ctx.fillText(hunger < 25 ? "ACIKTIM!" : "TOKLUK", W / 2, by + 14);
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+function render() {
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random() - 0.5) * 12 * shake * 2, (Math.random() - 0.5) * 12 * shake * 2);
+  drawBackground();
+  pads.forEach(drawPad);
+  if (state !== "menu") {
+    for (const b of bugs) drawBug(b);
+    drawTongue();
+    drawFrog();
+    for (const d of divers) drawDiver(d);
+    for (const p of fx) { ctx.globalAlpha = 1 - p.t / p.life; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5 * S, 0, 7); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const t of texts) {
+      ctx.globalAlpha = Math.max(0, 1 - t.t / 1.1);
+      ctx.font = `700 ${Math.round(20 * t.size * Math.max(S, 0.8))}px Fredoka, sans-serif`;
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(8,20,25,0.7)"; ctx.strokeText(t.s, t.x, t.y);
+      ctx.fillStyle = t.col; ctx.fillText(t.s, t.x, t.y);
+    }
+    ctx.globalAlpha = 1;
+  } else {
+    // menu ambience
+    for (const b of bugs) drawBug(b);
+    drawFrog();
+  }
+  ctx.restore();
+  if (state !== "menu") drawHUD();
+  if (flash > 0) { ctx.fillStyle = `rgba(255,60,50,${flash * 0.6})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (state === "play") update(dt);
+  else if (state === "menu") { time += dt; menuTick(dt); }
+  render();
+  requestAnimationFrame(loop);
+}
+function menuTick(dt) {
+  frog.blink -= dt; if (frog.blink < -3) frog.blink = 0.15;
+  for (const b of bugs) { b.ph += dt * 10; b.x += b.vx * dt * 0.5; b.y += Math.sin(b.ph * 0.2) * 0.3; if (b.x < -30) b.x = W + 20; if (b.x > W + 30) b.x = -20; }
+}
+
+// ---------- screens ----------
+function show(id) { ["startScreen", "overScreen", "pauseScreen"].forEach(s => $(s).hidden = s !== id); }
+function start() { audio(); newGame(); state = "play"; show(null); sfx.croak(); }
+function pause() { if (state !== "play") return; state = "pause"; show("pauseScreen"); }
+function resume() { state = "play"; last = performance.now(); show(null); }
+function endGame() {
+  state = "over";
+  const isBest = score > best;
+  if (isBest) { best = score; store.set("virak.best", best); }
+  $("finalScore").textContent = score;
+  $("finalStats").textContent = `${caught} böcek · en uzun seri ${bestCombo} · seviye ${level}` + (isBest ? " · yeni rekor!" : ` · rekor ${best}`);
+  setTimeout(() => show("overScreen"), 700);
+}
+function toMenu() { state = "menu"; newGame(); show("startScreen"); updateBest(); }
+function updateBest() { $("bestStart").textContent = best > 0 ? "Rekorun: " + best : ""; }
+function updateMute() { $("muteBtn").textContent = "Ses: " + (muted ? "kapalı" : "açık"); }
+
+$("playBtn").addEventListener("click", start);
+$("againBtn").addEventListener("click", start);
+$("resumeBtn").addEventListener("click", resume);
+$("quitBtn").addEventListener("click", toMenu);
+$("muteBtn").addEventListener("click", () => { muted = !muted; store.set("virak.muted", muted); updateMute(); });
+document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+window.addEventListener("resize", resize);
+window.addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") state === "pause" ? resume() : pause(); });
+
+// rule icons
+document.querySelectorAll("canvas[data-icon]").forEach(c => {
+  const g = c.getContext("2d");
+  drawBug({ kind: c.dataset.icon }, 32, 34, 16, 1.2, 1, g);
+});
+
+resize();
+newGame();
+for (let i = 0; i < 3; i++) spawnBug(["fly", "moth", "firefly"][i]);
+updateBest(); updateMute();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
