@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="night">#0D1F24</color>
+    <style name="Theme.Virak" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/night</item>
+        <item name="android:statusBarColor">@color/night</item>
+        <item name="android:navigationBarColor">@color/night</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" xmlns:tools="http://schemas.android.com/tools" tools:targetApi="28">shortEdges</item>
+    </style>
+</resources>

@@ -1,0 +1,54 @@
+plugins {
+    id "com.android.application"
+}
+
+// Upload key for Google Play comes from environment variables (set by the CI workflow from repo secrets).
+def ksFile = System.getenv("VIRAK_KEYSTORE_FILE")
+def ksPass = System.getenv("VIRAK_KEYSTORE_PASSWORD")
+def hasUploadKey = ksFile && ksPass && file(ksFile).exists()
+
+android {
+    namespace "io.github.akbuluterhan.virak"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "io.github.akbuluterhan.virak"
+        minSdk 24
+        targetSdk 36
+        versionCode Integer.parseInt(System.getenv("VIRAK_VERSION_CODE") ?: "1")
+        versionName "1.0." + (System.getenv("VIRAK_VERSION_CODE") ?: "1")
+    }
+
+    signingConfigs {
+        if (hasUploadKey) {
+            upload {
+                storeFile file(ksFile)
+                storePassword ksPass
+                keyAlias "upload"
+                keyPassword ksPass
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Without the upload key the build is signed with the debug key: fine for trying on a phone, rejected by Play.
+            signingConfig hasUploadKey ? signingConfigs.upload : signingConfigs.debug
+        }
+    }
+
+    sourceSets {
+        // The game itself lives in ../../virak and is shipped as app assets.
+        main.assets.srcDirs = ["../../virak"]
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "androidx.webkit:webkit:1.12.1"
+}
