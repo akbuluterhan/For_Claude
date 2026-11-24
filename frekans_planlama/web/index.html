@@ -1,0 +1,547 @@
+<title>Spektrum Planlama</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="mod" content="__MOD__">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Yerleşim: üstte sabit sekme çubuğu, altında tek sütun çalışma alanı; spektrum her yerde aynı yatay ölçekte. */
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --fg: #1b2330; --muted: #5d6776; --line: #dde1e7; --soft: #eef1f5;
+  --accent: #0e6f78; --accent-fg: #ffffff;
+  --z1: #e6e7ea; --z1s: #7d838d; --z2: #d8e0ec; --z2s: #4f6a94; --z3: #f7dfd1; --z3s: #c4672f; --z4: #dfeed5; --z4s: #4f8c33;
+  --c100: #56606e; --c200: #36598f; --cdiger: #c4672f; --plan: #7b3fb0; --oneri: #12a150; --hata: #d0342c;
+  --ok: #1d7f45; --ok-bg: #e2f4e8; --warn: #9a6200; --warn-bg: #fdf0d5; --crit: #b42318; --crit-bg: #fde5e2;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161c; --panel: #1a2028; --fg: #e5e9ef; --muted: #98a2b0; --line: #2c343f; --soft: #222a34;
+  --accent: #4fb8c1; --accent-fg: #0b1a1c;
+  --z1: #2a2e35; --z1s: #9aa1ab; --z2: #243145; --z2s: #7f9fd0; --z3: #3d2a20; --z3s: #e48a53; --z4: #24361f; --z4s: #7fbd5f;
+  --c100: #a3adba; --c200: #6f97d6; --cdiger: #e48a53; --plan: #b383e0; --oneri: #3fd07f; --hata: #ff6b61;
+  --ok: #5fd08d; --ok-bg: #173323; --warn: #f0b955; --warn-bg: #3a2c10; --crit: #ff8a80; --crit-bg: #3d1916;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #12161c; --panel: #1a2028; --fg: #e5e9ef; --muted: #98a2b0; --line: #2c343f; --soft: #222a34;
+  --accent: #4fb8c1; --accent-fg: #0b1a1c;
+  --z1: #2a2e35; --z1s: #9aa1ab; --z2: #243145; --z2s: #7f9fd0; --z3: #3d2a20; --z3s: #e48a53; --z4: #24361f; --z4s: #7fbd5f;
+  --c100: #a3adba; --c200: #6f97d6; --cdiger: #e48a53; --plan: #b383e0; --oneri: #3fd07f; --hata: #ff6b61;
+  --ok: #5fd08d; --ok-bg: #173323; --warn: #f0b955; --warn-bg: #3a2c10; --crit: #ff8a80; --crit-bg: #3d1916;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 14px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line); }
+.bas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; padding-block: 10px 0; }
+.bas h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+.bas h1 small { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--muted); margin-left: 8px; }
+.bilgi { margin-left: auto; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12.5px; flex-wrap: wrap; }
+nav { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+nav a { padding: 10px 14px 9px; color: var(--muted); text-decoration: none; font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; }
+nav a:hover { color: var(--fg); }
+nav a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); }
+nav a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .tikla:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main { padding-block: 20px 48px; display: grid; gap: 20px; }
+h2 { font-size: 15px; margin: 0; font-weight: 600; text-wrap: balance; }
+h3 { font-size: 13px; margin: 0; font-weight: 600; }
+.etiket { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.kutu { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.kutu > header, .kbas { position: static; background: none; border: 0; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.not { color: var(--muted); font-size: 12.5px; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.p-ok { background: var(--ok-bg); color: var(--ok); } .p-warn { background: var(--warn-bg); color: var(--warn); } .p-crit { background: var(--crit-bg); color: var(--crit); }
+.p-n { background: var(--soft); color: var(--muted); }
+.zchip { display: inline-block; padding: 0 6px; border-radius: 4px; font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
+.zchip.Z1 { background: var(--z1); color: var(--z1s); } .zchip.Z2 { background: var(--z2); color: var(--z2s); } .zchip.Z3 { background: var(--z3); color: var(--z3s); } .zchip.Z4 { background: var(--z4); color: var(--z4s); }
+button, .btn { font: inherit; font-weight: 600; border-radius: 6px; padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); cursor: pointer; }
+button.ana { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 5px 11px; font-weight: 500; background: var(--panel); }
+.seg button[aria-pressed="true"] { background: var(--soft); color: var(--fg); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+input, select, textarea { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; width: 100%; }
+textarea { font-family: var(--mono); font-size: 12.5px; min-height: 92px; resize: vertical; }
+label { display: grid; gap: 4px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+
+/* zone şeridi */
+.zoneler { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.zone { border-radius: 8px; padding: 14px; border: 1px solid var(--line); background: var(--panel); display: grid; gap: 8px; align-content: start; }
+.zone .zb { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.zone .zb b { font-size: 15px; }
+.zone .aralik { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.olcer { position: relative; height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; }
+.olcer i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; }
+.olcer .esik { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--fg); opacity: 0.55; }
+.zone dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 12.5px; }
+.zone dt { color: var(--muted); } .zone dd { margin: 0; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.kpi div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+.kpi b { display: block; font-family: var(--mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: 12.5px; }
+
+/* spektrum */
+.spk { width: 100%; display: block; }
+.spk text { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+.spk .kn { cursor: pointer; }
+.spk .kn:hover { opacity: 0.8; }
+.harita-kutu { overflow-x: auto; }
+canvas.harita { width: 100%; min-width: 640px; display: block; cursor: pointer; image-rendering: pixelated; border-radius: 4px; }
+.lejant { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); align-items: center; }
+.lejant i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -2px; margin-right: 5px; }
+
+/* tablolar */
+.tablo { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; padding: 9px 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tr.tikla { cursor: pointer; } tr.tikla:hover td { background: var(--soft); }
+tr.secili td { background: var(--soft); }
+td.sayi, th.sayi { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.ok { color: var(--muted); padding: 0 4px; }
+.serv { max-width: 380px; overflow-wrap: anywhere; }
+.sorun { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.izgara2 { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.liste { max-height: 70vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.liste button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 8px 12px; font-weight: 400; background: var(--panel); }
+.liste button[aria-pressed="true"] { background: var(--soft); box-shadow: inset 3px 0 0 var(--accent); }
+.liste .ad { font-size: 12.5px; font-weight: 500; overflow-wrap: anywhere; }
+.liste .alt { display: flex; gap: 8px; font-size: 11.5px; color: var(--muted); font-family: var(--mono); }
+.filtre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filtre input { max-width: 320px; }
+.form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.form .gen { grid-column: 1 / -1; }
+.ekle { display: flex; gap: 8px; }
+.sonuc-bas { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: end; }
+.frek { font-family: var(--mono); font-size: 30px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.frek small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+.alt-l { display: flex; flex-wrap: wrap; gap: 6px; }
+.alt-l button { font-family: var(--mono); font-weight: 500; font-size: 12.5px; padding: 4px 9px; }
+.alt-l button[aria-pressed="true"] { border-color: var(--oneri); box-shadow: inset 0 0 0 1px var(--oneri); }
+.uyari { border-left: 3px solid var(--warn); background: var(--warn-bg); color: var(--fg); padding: 8px 12px; border-radius: 4px; font-size: 13px; }
+.hata { border-left: 3px solid var(--crit); background: var(--crit-bg); padding: 8px 12px; border-radius: 4px; font-size: 13px; }
+.bilgi-k { border-left: 3px solid var(--accent); background: var(--soft); padding: 10px 14px; border-radius: 4px; font-size: 13px; }
+.linkbar { display: grid; gap: 2px; padding-block: 6px; border-bottom: 1px dashed var(--line); }
+.linkbar:last-child { border-bottom: 0; }
+.linkbar .lb { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.linkbar .lb span:first-child { overflow-wrap: anywhere; }
+.detay { margin-top: 8px; font-size: 12.5px; min-height: 20px; color: var(--muted); }
+.yonok { font-family: var(--mono); }
+.gizli { display: none; }
+
+@media (max-width: 900px) {
+  .zoneler { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .izgara2 { grid-template-columns: minmax(0, 1fr); }
+  .liste { max-height: 320px; }
+  .form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .zoneler, .form { grid-template-columns: minmax(0, 1fr); }
+  .bilgi { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) { .kutu, .zone { transition: border-color 0.15s; } }
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="bas">
+      <h1>Spektrum Planlama <small>C-band · 191.275–196.075 THz</small></h1>
+      <div class="bilgi"><span id="modBilgi" class="pill p-n">yükleniyor</span><span id="veriTarih"></span><button id="yenileBtn" class="gizli" type="button">Veriyi yeniden oku</button></div>
+    </div>
+    <nav aria-label="Bölümler">
+      <a href="#genel">Genel bakış</a>
+      <a href="#talep">Yeni talep</a>
+      <a href="#yeniden">Yeniden planlama</a>
+      <a href="#linkler">Linkler</a>
+      <a href="#kanallar">Kanallar</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" id="icerik">
+  <section class="kutu"><p class="not">NMS verisi yükleniyor…</p></section>
+</main>
+
+<script>
+"use strict";
+const MOD = document.querySelector('meta[name="mod"]').content;  // "sunucu" | "statik"
+let V = null;           // tüm veri
+let LINK = {};          // id -> link
+let durum = { haritaMod: "once", linkSecili: null, linkMod: "once", linkFiltre: "", linkTip: "hepsi",
+              yenFiltre: "hepsi", yenSecili: null, kanalFiltre: "", kanalSorunlu: false, sonuc: null, onizleme: null };
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const f5 = x => x == null ? "–" : Number(x).toFixed(5);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const ZRENK = { Z1: ["--z1", "--z1s"], Z2: ["--z2", "--z2s"], Z3: ["--z3", "--z3s"], Z4: ["--z4", "--z4s"] };
+const zchip = z => z && ZRENK[z] ? `<span class="zchip ${z}">${z}</span>` : `<span class="zchip">${esc(z || "–")}</span>`;
+const hizRenk = g => g == 50 ? "--c100" : g == 75 ? "--c200" : "--cdiger";
+const hizAdi = g => Object.entries(V.meta.hiz_genislik).find(([h, w]) => w == g)?.[0] || `${g} GHz`;
+
+function slot(thz) { return Math.round((thz - V.meta.ref) * 1000 / V.meta.adim); }
+function kenarlar(m, g) {
+  const a = (m - g / 2000 - V.meta.ref) * 1000 / V.meta.adim, b = (m + g / 2000 - V.meta.ref) * 1000 / V.meta.adim;
+  return [Math.floor(a + 1e-6), Math.ceil(b - 1e-6)];
+}
+function zoneOf(m) { return V.meta.zonelar.find(z => m >= z.baslangic - 1e-9 && m < z.bitis - 1e-9)?.kod; }
+
+/* ---------- spektrum çubuğu (SVG) ---------- */
+function cubuk(kanallar, o = {}) {
+  const K = 3, s0 = V.meta.s_min, s1 = V.meta.s_max, W = (s1 - s0) * K;
+  const H = o.h || 34, eksen = o.eksen !== false, top = 2, alt = eksen ? 14 : 2, TH = H + top + alt;
+  let g = `<svg class="spk" viewBox="0 0 ${W} ${TH}" preserveAspectRatio="none" role="img" aria-label="Spektrum doluluğu">`;
+  for (const z of V.meta.zonelar)
+    g += `<rect x="${(z.s0 - s0) * K}" y="${top}" width="${(z.s1 - z.s0) * K}" height="${H}" fill="var(${ZRENK[z.kod][0]})"/>`;
+  // çakışma tespiti
+  const dol = new Array(s1).fill(0);
+  for (const k of kanallar) { const [a, b] = kenarlar(k[1], k[2]); for (let s = a; s < b; s++) dol[s]++; }
+  for (const k of kanallar) {
+    const [a, b] = kenarlar(k[1], k[2]);
+    let cak = false; for (let s = a; s < b; s++) if (dol[s] > 1) cak = true;
+    const vurgu = o.isaret && o.isaret(k);
+    const renk = vurgu === "yeni" ? "var(--oneri)" : k[4] === "PLAN" ? "var(--plan)" : k[4] === "TASINDI" ? "var(--accent)" : `var(${hizRenk(k[2])})`;
+    const op = o.isaret && !vurgu ? 0.35 : 1;
+    g += `<rect class="kn" data-k="${esc(JSON.stringify(k))}" x="${(a - s0) * K + 0.6}" y="${top + 3}" width="${Math.max(1, (b - a) * K - 1.2)}" height="${H - 6}" rx="1.5" fill="${renk}" opacity="${op}"${cak ? ' stroke="var(--hata)" stroke-width="2.4"' : vurgu === "eski" ? ' stroke="var(--hata)" stroke-width="2" stroke-dasharray="4 2"' : ""}><title>${esc(k[0])}\n${f5(k[1])} THz · ${k[2]} GHz${cak ? "\nÇAKIŞMA" : ""}</title></rect>`;
+  }
+  if (o.oneri) {
+    const [a, b] = kenarlar(o.oneri.merkez, o.oneri.genislik);
+    g += `<rect x="${(a - s0) * K}" y="${top}" width="${(b - a) * K}" height="${H}" fill="var(--oneri)" opacity="0.9" rx="1.5"><title>Öneri ${f5(o.oneri.merkez)} THz</title></rect>`;
+  }
+  for (const z of V.meta.zonelar.slice(1))
+    g += `<line x1="${(z.s0 - s0) * K}" x2="${(z.s0 - s0) * K}" y1="${top}" y2="${top + H}" stroke="var(--fg)" stroke-opacity="0.35" stroke-width="1"/>`;
+  if (eksen) {
+    for (let f = 191.5; f <= 196.01; f += 0.5) {
+      const x = (slot(f) - s0) * K;
+      g += `<line x1="${x}" x2="${x}" y1="${top + H}" y2="${top + H + 3}" stroke="var(--muted)"/>`;
+      g += `<text x="${x}" y="${TH - 1}" text-anchor="middle">${f.toFixed(1)}</text>`;
+    }
+  }
+  return g + "</svg>";
+}
+function kanalDetay(e, hedef) {
+  const r = e.target.closest(".kn"); if (!r) return;
+  const k = JSON.parse(r.dataset.k);
+  const el = document.getElementById(hedef);
+  if (el) el.innerHTML = `<b class="mono">${f5(k[1])} THz</b> · ${k[2]} GHz (${esc(hizAdi(k[2]))}) · ${esc(k[3])}${k[4] === "PLAN" ? " · <b>planlanan</b>" : ""} — ${esc(k[0])}`;
+}
+
+/* ---------- genel bakış ---------- */
+function zoneKart(z, linkler) {
+  const kul = linkler.map(l => l.kul[z.kod]);
+  const ort = kul.reduce((a, b) => a + b, 0) / Math.max(1, kul.length), mx = Math.max(0, ...kul);
+  const asan = kul.filter(x => x > V.meta.esik * 100 + 1e-9).length;
+  const yon = z.yon === "yukari" ? "→ yukarı" : "← aşağı";
+  const renk = mx > V.meta.esik * 100 ? "var(--crit)" : `var(${ZRENK[z.kod][1]})`;
+  return `<div class="zone" style="border-top:3px solid var(${ZRENK[z.kod][1]})">
+    <div class="zb"><b>${esc(z.ad)}</b><span class="aralik">${z.baslangic.toFixed(3)}–${z.bitis.toFixed(3)}</span></div>
+    <div class="not">${z.genislikler.length ? z.genislikler.map(g => `${g} GHz`).join(" / ") + (z.genislikler.map(hizAdi).filter(h => !h.includes("GHz")).length ? " · " + z.genislikler.map(hizAdi).filter(h => !h.includes("GHz")).join("/") : "") : "ihtiyaca göre"} · dolum ${yon}</div>
+    <div class="olcer" title="En yoğun link %${mx.toFixed(1)}"><i style="width:${Math.min(100, mx)}%;background:${renk}"></i><span class="esik" style="left:${V.meta.esik * 100}%"></span></div>
+    <dl><dt>Ortalama link</dt><dd>%${ort.toFixed(1)}</dd><dt>En yoğun link</dt><dd>%${mx.toFixed(1)}</dd>
+    <dt>%${Math.round(V.meta.esik * 100)} eşiğini aşan</dt><dd>${asan}</dd><dt>Overflow</dt><dd>${z.overflow.join(", ") || "–"}</dd><dt>Toplam</dt><dd>${z.toplam} GHz</dd></dl></div>`;
+}
+
+function genel() {
+  const linkler = durum.haritaMod === "once" ? V.linkler : V.linkler.map(l => ({ ...l, ...V.sonraLinkler[l.id] }));
+  const sorunlu = V.kanallar.filter(k => k.tasinacak).length;
+  const cak = V.kanallar.filter(k => k.sorunlar.some(s => s.startsWith("ÇAKIŞMA"))).length;
+  const dis = V.linkler.filter(l => l.tip === "dis").length;
+  const yogun = [...linkler].map(l => ({ l, mx: Math.max(...Object.values(l.kul)), z: Object.entries(l.kul).sort((a, b) => b[1] - a[1])[0][0] }))
+    .sort((a, b) => b.mx - a.mx).slice(0, 8);
+  return `
+  <div class="kpi">
+    <div><b>${V.linkler.length}</b><span>link (${dis} siteler arası)</span></div>
+    <div><b>${V.kanallar.length}</b><span>kanal (servis × frekans)</span></div>
+    <div><b>${sorunlu}</b><span>kurala uymayan kanal</span></div>
+    <div><b>${cak}</b><span>çakışmaya karışan kanal</span></div>
+    <div><b>%${Math.round(V.meta.esik * 100)}</b><span>zone kullanım eşiği (link başına)</span></div>
+  </div>
+  <section class="kutu">
+    <div class="kbas"><h2>Zone kullanımı</h2>
+      <div class="seg" role="group" aria-label="Görünüm"><button type="button" data-hm="once" aria-pressed="${durum.haritaMod === "once"}">Bugün</button><button type="button" data-hm="sonra" aria-pressed="${durum.haritaMod === "sonra"}">Yeniden planlama sonrası</button></div></div>
+    <div class="zoneler">${V.meta.zonelar.map(z => zoneKart(z, linkler)).join("")}</div>
+  </section>
+  <section class="kutu">
+    <div class="kbas"><h2>Ağ spektrum haritası</h2><span class="not">Her satır bir link, her sütun 12.5 GHz. Bir satıra tıklayınca o linkin detayı açılır.</span></div>
+    <div class="harita-kutu"><canvas class="harita" id="harita"></canvas></div>
+    <div class="lejant" style="margin-top:10px">
+      <span><i style="background:var(--c100)"></i>100G · 50 GHz</span><span><i style="background:var(--c200)"></i>200G · 75 GHz</span>
+      <span><i style="background:var(--cdiger)"></i>diğer genişlik</span><span><i style="background:var(--plan)"></i>planlanan (NMS'te henüz yok)</span>
+      <span><i style="background:var(--hata)"></i>çakışma</span>
+      ${durum.haritaMod === "sonra" ? '<span><i style="background:var(--accent)"></i>yeniden planlanan (yeni yeri)</span>' : ""}
+      ${V.meta.zonelar.map(z => `<span><i style="background:var(${ZRENK[z.kod][0]});outline:1px solid var(--line)"></i>${z.kod} boş</span>`).join("")}
+      <span class="not" id="haritaIpucu"></span>
+    </div>
+  </section>
+  <section class="kutu">
+    <div class="kbas"><h2>En yoğun linkler</h2><span class="not">En yüksek zone kullanımına göre</span></div>
+    <div class="tablo"><table><thead><tr><th>Link</th><th>Tip</th>${V.meta.zonelar.map(z => `<th class="sayi">${z.kod} %</th>`).join("")}</tr></thead><tbody>
+    ${yogun.map(({ l }) => `<tr class="tikla" data-link="${esc(l.id)}" tabindex="0"><td class="serv">${esc(l.id)}</td><td>${l.tip === "dis" ? "siteler arası" : "site içi"}</td>${V.meta.zonelar.map(z => `<td class="sayi" style="${l.kul[z.kod] > V.meta.esik * 100 ? "color:var(--crit);font-weight:600" : ""}">${l.kul[z.kod].toFixed(1)}</td>`).join("")}</tr>`).join("")}
+    </tbody></table></div>
+  </section>`;
+}
+
+function haritaCiz() {
+  const cv = document.getElementById("harita"); if (!cv) return;
+  const linkler = durum.haritaMod === "once" ? V.linkler : V.linkler.map(l => ({ ...l, ...V.sonraLinkler[l.id] }));
+  const s0 = V.meta.s_min, s1 = V.meta.s_max, cols = s1 - s0, RH = 3, cw = 2;
+  cv.width = cols * cw; cv.height = linkler.length * RH; cv.style.height = Math.max(240, linkler.length * RH * (cv.clientWidth / cv.width || 1)) + "px";
+  cv.style.height = "auto";
+  const c = cv.getContext("2d");
+  const zs = {}; for (const z of V.meta.zonelar) for (let s = z.s0; s < z.s1; s++) zs[s] = z.kod;
+  const R = { bos: {}, c100: css("--c100"), c200: css("--c200"), cd: css("--cdiger"), plan: css("--plan"), tas: css("--accent"), hata: css("--hata"), bg: css("--soft") };
+  for (const z of V.meta.zonelar) R.bos[z.kod] = css(ZRENK[z.kod][0]);
+  linkler.forEach((l, i) => {
+    const dol = new Array(s1).fill(null), say = new Array(s1).fill(0);
+    for (const k of l.kanallar) { const [a, b] = kenarlar(k[1], k[2]); for (let s = a; s < b; s++) { say[s]++; dol[s] = k; } }
+    for (let s = s0; s < s1; s++) {
+      const k = dol[s];
+      c.fillStyle = !k ? (R.bos[zs[s]] || R.bg) : say[s] > 1 ? R.hata : k[4] === "PLAN" ? R.plan : k[4] === "TASINDI" ? R.tas : k[2] == 50 ? R.c100 : k[2] == 75 ? R.c200 : R.cd;
+      c.fillRect((s - s0) * cw, i * RH, cw, RH - (i % 1));
+    }
+  });
+  const ayir = linkler.findIndex(l => l.tip === "ic");
+  if (ayir > 0) { c.fillStyle = css("--fg"); c.fillRect(0, ayir * RH - 1, cv.width, 1); }
+  cv.onclick = e => {
+    const r = cv.getBoundingClientRect(); const i = Math.floor((e.clientY - r.top) / r.height * linkler.length);
+    if (linkler[i]) { durum.linkSecili = linkler[i].id; durum.linkMod = durum.haritaMod; location.hash = "linkler"; }
+  };
+  cv.onmousemove = e => {
+    const r = cv.getBoundingClientRect(); const i = Math.floor((e.clientY - r.top) / r.height * linkler.length);
+    const s = s0 + Math.floor((e.clientX - r.left) / r.width * cols);
+    const ip = document.getElementById("haritaIpucu");
+    if (ip && linkler[i]) ip.textContent = `${linkler[i].id} · ${(V.meta.ref + s * V.meta.adim / 1000).toFixed(4)} THz`;
+  };
+}
+
+/* ---------- yeni talep ---------- */
+function talep() {
+  const kapali = MOD !== "sunucu";
+  const hizlar = Object.keys(V.meta.hiz_genislik);
+  return `
+  ${kapali ? `<div class="bilgi-k">Bu sayfa verinin anlık bir kopyası. Yeni talep için aracı kendi bilgisayarınızda <span class="mono">python web.py</span> ile çalıştırın; aynı ekran orada canlı çalışır ve atamaları kaydeder.</div>` : ""}
+  <section class="kutu">
+    <div class="kbas"><h2>Yeni servis talebi</h2><span class="not">Rota: ME ya da site adları, <span class="mono">&gt;</span> ile ayrılır</span></div>
+    <form id="talepForm" class="form" autocomplete="off">
+      <label for="tTalep">Talep / servis adı<input id="tTalep" placeholder="ör. TALEP-2026-118"></label>
+      <label for="tHiz">Hız<select id="tHiz">${hizlar.map(h => `<option value="${h}">${h} · ${V.meta.hiz_genislik[h]} GHz</option>`).join("")}<option value="">Diğer (genişlik gir)</option></select></label>
+      <label for="tGen">Genişlik (GHz)<input id="tGen" type="number" step="12.5" min="12.5" placeholder="hızdan gelir" disabled></label>
+      <label for="tZone">Zone<select id="tZone"><option value="">Otomatik</option>${V.meta.zonelar.map(z => `<option>${z.kod}</option>`).join("")}</select></label>
+      <label class="gen" for="tRota">Rota<textarea id="tRota" placeholder="055_ILKADIM_MASTER_5001 > 055_KAVAK_MASTER_ILKADIM/ASARCIK YONU_5040"></textarea></label>
+      <div class="gen ekle"><input id="tDugum" list="dugumler" placeholder="ME veya site ara, Enter ile rotaya ekle" aria-label="Rotaya düğüm ekle"><button type="button" id="tEkle">Ekle</button></div>
+      <datalist id="dugumler">${[...new Set(V.me.map(m => m))].map(m => `<option value="${esc(m)}">`).join("")}${[...new Set(V.linkler.flatMap(l => [l.siteA, l.siteB]))].map(s => `<option value="${esc(s.split("_").slice(1).join("_"))}">`).join("")}</datalist>
+      <div class="gen" style="display:flex;gap:8px;flex-wrap:wrap"><button class="ana" type="submit" ${kapali ? "disabled" : ""}>Frekans öner</button><button type="button" id="tOrnek">Örnek rota</button></div>
+    </form>
+  </section>
+  <div id="talepSonuc">${durum.sonuc ? sonucHtml(durum.sonuc) : ""}</div>`;
+}
+const DURUM_PILL = { UYGUN: "p-ok", OVERFLOW: "p-warn", ESIK_USTU: "p-warn", OVERFLOW_ESIK_USTU: "p-crit", BLOKE: "p-crit" };
+function sonucHtml(s) {
+  if (s.hata) return `<div class="hata">${esc(s.hata)}</div>`;
+  const o = durum.onizleme || s.oneri;
+  const tum = s.oneri ? [s.oneri, ...s.alternatifler] : [];
+  return `<section class="kutu">
+    <div class="sonuc-bas">
+      <div><div class="etiket">Önerilen merkez frekans</div><div class="frek">${o ? f5(o.merkez) : "—"}<small>THz</small></div>
+        <div class="mono not">${o ? `${f5(o.alt)} – ${f5(o.ust)} · ${s.genislik} GHz` : "uygun yer yok"}</div></div>
+      <div style="display:grid;gap:6px"><div><span class="pill ${DURUM_PILL[s.durum] || "p-n"}">${esc(s.durum)}</span> ${o ? zchip(o.zone) : ""} <span class="not">${esc(s.hiz || "")} · ana zone ${esc(s.anaZone)}</span></div>
+        <div class="not">${esc(s.aciklama)}</div>
+        ${o ? `<div class="not">Atama sonrası rotadaki en yüksek zone kullanımı: <b class="mono">%${o.maxKul}</b></div>` : ""}</div>
+      ${MOD === "sunucu" && o ? `<div style="margin-left:auto"><button class="ana" type="button" id="tKaydet">Bu frekansı kaydet</button></div>` : ""}
+    </div>
+    ${tum.length > 1 ? `<div style="margin-top:14px"><div class="etiket" style="margin-bottom:6px">Alternatifler</div><div class="alt-l">${tum.map((a, i) => `<button type="button" data-alt="${i}" aria-pressed="${(durum.onizleme || s.oneri) === a}">${f5(a.merkez)} <span class="zchip ${a.zone}">${a.zone}</span></button>`).join("")}</div></div>` : ""}
+    ${s.uyarilar.map(u => `<div class="uyari" style="margin-top:10px">${esc(u)}</div>`).join("")}
+    ${s.durum === "BLOKE" && s.darbogaz.length ? `<div class="hata" style="margin-top:10px"><b>Darboğaz linkler:</b> ${s.darbogaz.map(esc).join(" · ")}</div>` : ""}
+    <div id="kayitMesaj" class="detay"></div>
+  </section>
+  <section class="kutu">
+    <div class="kbas"><h2>Rotadaki linkler (${s.linkler.length})</h2><span class="not">Yeşil: öneri. Kanala tıklayınca detayı aşağıda görünür.</span></div>
+    ${s.linkler.map(l => `<div class="linkbar"><div class="lb"><span>${esc(l.id)}${s.darbogaz.includes(l.id) ? ' <span class="pill p-crit">darboğaz</span>' : ""}</span>${l.kulSonra != null && o === s.oneri ? `<span class="mono not">${s.oneri.zone} %${l.kulSonra}</span>` : ""}</div>${cubuk(l.kanallar, { oneri: o ? { merkez: o.merkez, genislik: s.genislik } : null, h: 26 })}</div>`).join("")}
+    <div id="talepDetay" class="detay"></div>
+  </section>`;
+}
+async function talepGonder(e) {
+  e.preventDefault();
+  const hiz = document.getElementById("tHiz").value;
+  const govde = { talep: tTalep.value, hiz, genislik: hiz ? null : tGen.value, zone: tZone.value, rota: tRota.value };
+  const kutu = document.getElementById("talepSonuc");
+  kutu.innerHTML = `<section class="kutu"><p class="not">Hesaplanıyor…</p></section>`;
+  try {
+    const r = await fetch("/api/ata", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(govde) });
+    durum.sonuc = await r.json(); durum.onizleme = null;
+  } catch (err) { durum.sonuc = { hata: "Sunucuya ulaşılamadı: " + err.message }; }
+  kutu.innerHTML = sonucHtml(durum.sonuc);
+}
+async function kaydet() {
+  const s = durum.sonuc, o = durum.onizleme || s.oneri;
+  const msj = document.getElementById("kayitMesaj");
+  try {
+    const r = await fetch("/api/kaydet", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ talep: s.talep, merkez: o.merkez, genislik: s.genislik, zone: o.zone, linkler: s.linkler.map(l => l.id) }) });
+    const j = await r.json();
+    if (j.hata) { msj.innerHTML = `<span style="color:var(--crit)">${esc(j.hata)}</span>`; return; }
+    msj.innerHTML = `<span style="color:var(--ok)">Kaydedildi: ${esc(s.talep)} @ ${f5(o.merkez)} THz. Sonraki talepler bu kanalı dolu görecek.</span>`;
+    await veriYukle(false);
+  } catch (err) { msj.textContent = "Kaydedilemedi: " + err.message; }
+}
+
+/* ---------- yeniden planlama ---------- */
+const SORUN_PILL = s => s.startsWith("ÇAKIŞMA") ? "p-crit" : s.startsWith("YANLIŞ") ? "p-warn" : "p-n";
+function yeniden() {
+  const Y = V.yeniden;
+  const say = t => V.kanallar.filter(k => k.sorunlar.some(s => s.startsWith(t))).length;
+  const filtreler = [["hepsi", `Tümü (${Y.length})`], ["a1", `1. adım (${Y.filter(y => y.adim === 1).length})`],
+    ["a2", `Sonraki adımlar (${Y.filter(y => y.adim > 1).length})`], ["YANLIŞ", `Yanlış zone (${say("YANLIŞ")})`],
+    ["GRID", `Grid dışı (${say("GRID")})`], ["ZONE SINIRI", `Zone sınırı (${say("ZONE SINIRI")})`], ["ÇAKIŞMA", `Çakışma (${say("ÇAKIŞMA")})`]];
+  const f = durum.yenFiltre;
+  const liste = Y.filter(y => f === "hepsi" || (f === "a1" && y.adim === 1) || (f === "a2" && y.adim > 1) || y.sorunlar.some(s => s.startsWith(f)))
+    .sort((a, b) => (a.adim ?? 99) - (b.adim ?? 99) || a.servis.localeCompare(b.servis));
+  const gecici = Y.filter(y => y.yeni != null && !y.adim && y.durum !== "DEĞİŞİKLİK YOK").length;
+  return `
+  <div class="kpi">
+    <div><b>${V.kanallar.length - Y.length}</b><span>kanal kurala uygun, yerinde kalıyor</span></div>
+    <div><b>${Y.length}</b><span>kanal yeniden planlandı</span></div>
+    <div><b>${Y.filter(y => y.adim === 1).length}</b><span>hemen taşınabilir (hedef bugün boş)</span></div>
+    <div><b>${Y.filter(y => y.adim > 1).length}</b><span>önceki taşımalardan sonra</span></div>
+    <div><b>${gecici + Y.filter(y => y.durum === "BLOKE").length}</b><span>geçici frekans gereken / yer bulunamayan</span></div>
+  </div>
+  <section class="kutu">
+    <div class="kbas"><h2>Taşıma planı</h2><span class="not">Kurala uyan kanallar sabit tutuldu; sorunlu kanallar aynı atama kurallarıyla yeniden yerleştirildi. Satıra tıklayınca linkleri önce/sonra gösterilir.</span></div>
+    <div class="filtre" style="margin-bottom:12px">${filtreler.map(([k, ad]) => `<button type="button" data-yf="${k}" aria-pressed="${f === k}" class="${f === k ? "ana" : ""}">${ad}</button>`).join("")}</div>
+    <div class="tablo" style="max-height:60vh"><table><thead><tr><th>Adım</th><th>Servis</th><th>Hız</th><th class="sayi">Mevcut</th><th></th><th class="sayi">Yeni</th><th>Zone</th><th>Sorunlar</th><th class="sayi">Link</th></tr></thead><tbody>
+    ${liste.map(y => { const i = Y.indexOf(y); return `<tr class="tikla ${durum.yenSecili === i ? "secili" : ""}" data-y="${i}" tabindex="0">
+      <td class="mono">${y.adim ?? (y.durum === "BLOKE" ? "BLOKE" : "geçici")}</td><td class="serv">${esc(y.servis)}</td><td class="mono">${esc(y.hiz)}</td>
+      <td class="sayi">${f5(y.eski)}</td><td class="ok">→</td><td class="sayi" style="color:var(--ok);font-weight:600">${f5(y.yeni)}</td>
+      <td style="white-space:nowrap">${zchip(y.eskiZone)} <span class="ok">→</span> ${zchip(y.yeniZone)}</td>
+      <td><div class="sorun">${y.sorunlar.map(s => `<span class="pill ${SORUN_PILL(s)}" title="${esc(s)}">${esc(s.split(" (")[0])}</span>`).join("")}</div></td>
+      <td class="sayi">${y.linkler.length}</td></tr>`; }).join("")}
+    </tbody></table></div>
+  </section>
+  <div id="yenDetay">${durum.yenSecili != null ? yenDetay(Y[durum.yenSecili]) : ""}</div>`;
+}
+function yenDetay(y) {
+  const anahtar = k => k[0] === y.servis;
+  return `<section class="kutu">
+    <div class="kbas"><h2 class="serv">${esc(y.servis)}</h2><span class="mono">${f5(y.eski)} → <b style="color:var(--ok)">${f5(y.yeni)}</b> THz · ${y.genislik} GHz</span></div>
+    <div style="display:grid;gap:6px;margin-bottom:10px">${y.sorunlar.map(s => `<div class="not">• ${esc(s)}</div>`).join("")}<div class="not">• ${esc(y.sira || "")}</div><div class="not">• Kontrol edilen rota tipleri: ${esc(y.rotaTipleri.join(", "))}</div></div>
+    <div class="lejant" style="margin-bottom:6px"><span><i style="background:var(--c100)"></i>diğer kanallar</span><span><i style="background:var(--oneri)"></i>servisin yeni yeri</span><span><i style="border:2px dashed var(--hata)"></i>servisin bugünkü yeri</span></div>
+    ${y.linkler.map(id => `<div class="linkbar"><div class="lb"><span>${esc(id)}</span></div>
+      <div class="etiket">Bugün</div>${cubuk(LINK[id].kanallar, { h: 18, eksen: false, isaret: k => anahtar(k) ? "eski" : null })}
+      <div class="etiket">Sonra</div>${cubuk(V.sonraLinkler[id].kanallar, { h: 18, isaret: k => anahtar(k) ? "yeni" : null })}</div>`).join("")}
+    <div id="yenKanal" class="detay"></div>
+  </section>`;
+}
+
+/* ---------- linkler ---------- */
+function linkler() {
+  const q = durum.linkFiltre.toLocaleUpperCase("tr");
+  const L = V.linkler.filter(l => (durum.linkTip === "hepsi" || l.tip === durum.linkTip) && (!q || l.id.toLocaleUpperCase("tr").includes(q)));
+  if (!durum.linkSecili) durum.linkSecili = V.linkler[0]?.id;
+  return `<div class="izgara2">
+    <div style="display:grid;gap:8px;min-width:0">
+      <input id="lAra" placeholder="Link / ME ara (ör. KAVAK)" value="${esc(durum.linkFiltre)}" aria-label="Link ara">
+      <div class="seg" role="group" aria-label="Link tipi">${[["hepsi", "Tümü"], ["dis", "Siteler arası"], ["ic", "Site içi"]].map(([k, a]) => `<button type="button" data-lt="${k}" aria-pressed="${durum.linkTip === k}">${a}</button>`).join("")}</div>
+      <div class="liste" id="lListe">${L.map(l => { const mx = Math.max(...Object.values(l.kul)); return `<button type="button" data-link="${esc(l.id)}" aria-pressed="${l.id === durum.linkSecili}"><div class="ad">${esc(l.a)}<br>${esc(l.b)}</div><div class="alt"><span>${l.kanallar.length} kanal</span><span style="${mx > V.meta.esik * 100 ? "color:var(--crit)" : ""}">max %${mx.toFixed(0)}</span></div></button>`; }).join("") || `<p class="not" style="padding:12px">Eşleşen link yok.</p>`}</div>
+      <div class="not">${L.length} / ${V.linkler.length} link</div>
+    </div>
+    <div id="lDetay" style="min-width:0">${linkDetay(durum.linkSecili)}</div></div>`;
+}
+function linkDetay(id) {
+  const l = LINK[id]; if (!l) return "";
+  const d = durum.linkMod === "once" ? l : { ...l, ...V.sonraLinkler[id] };
+  const yen = new Map(V.yeniden.map(y => [y.servis + "@" + y.eski, y]));
+  return `<section class="kutu">
+    <div class="kbas"><div><div class="etiket">${l.tip === "dis" ? "Siteler arası link" : "Site içi link"}</div><h2 class="serv">${esc(l.a)} ⇄ ${esc(l.b)}</h2></div>
+      <div class="seg" role="group" aria-label="Görünüm"><button type="button" data-lm="once" aria-pressed="${durum.linkMod === "once"}">Bugün</button><button type="button" data-lm="sonra" aria-pressed="${durum.linkMod === "sonra"}">Yeniden planlama sonrası</button></div></div>
+    ${cubuk(d.kanallar, { h: 40 })}
+    ${durum.linkMod === "sonra" ? '<div class="lejant" style="margin-top:6px"><span><i style="background:var(--accent)"></i>yeniden planlanan kanalların yeni yeri</span><span><i style="background:var(--c100)"></i>100G</span><span><i style="background:var(--c200)"></i>200G</span></div>' : ""}
+    <div id="lKanal" class="detay">Kanala tıklayınca detayı burada görünür.</div>
+    <div class="zoneler" style="margin-top:12px">${V.meta.zonelar.map(z => { const k = d.kul[z.kod]; return `<div class="zone" style="padding:10px;gap:6px"><div class="zb"><span>${zchip(z.kod)}</span><b class="mono" style="${k > V.meta.esik * 100 ? "color:var(--crit)" : ""}">%${k.toFixed(1)}</b></div><div class="olcer"><i style="width:${Math.min(100, k)}%;background:var(${ZRENK[z.kod][1]})"></i><span class="esik" style="left:${V.meta.esik * 100}%"></span></div><div class="not">parçalanma ${durum.linkMod === "once" ? (l.frag[z.kod] * 100).toFixed(0) + "%" : "–"}</div></div>`; }).join("")}</div>
+  </section>
+  <div class="tablo"><table><thead><tr><th class="sayi">Merkez THz</th><th class="sayi">GHz</th><th>Hız</th><th>Zone</th><th>Servis</th><th>Rota</th>${durum.linkMod === "once" ? "<th>Plan</th>" : ""}</tr></thead><tbody>
+  ${d.kanallar.map(k => { const y = yen.get(k[0] + "@" + k[1]); return `<tr><td class="sayi">${f5(k[1])}</td><td class="sayi">${k[2]}</td><td class="mono">${esc(hizAdi(k[2]))}</td><td>${zchip(zoneOf(k[1]))}</td><td class="serv">${esc(k[0])}${k[4] === "PLAN" ? ' <span class="pill p-n">planlanan</span>' : k[4] === "TASINDI" ? ' <span class="pill p-ok">yeni yeri</span>' : ""}</td><td class="not">${esc(k[3])}</td>${durum.linkMod === "once" ? `<td>${y ? `<span class="mono" style="color:var(--ok)">→ ${f5(y.yeni)}</span>` : '<span class="not">yerinde</span>'}</td>` : ""}</tr>`; }).join("")}
+  </tbody></table></div>`;
+}
+
+/* ---------- kanallar ---------- */
+function kanallar() {
+  const q = durum.kanalFiltre.toLocaleUpperCase("tr");
+  const K = V.kanallar.filter(k => (!durum.kanalSorunlu || k.sorunlar.length) && (!q || k.servis.toLocaleUpperCase("tr").includes(q) || String(k.merkez).includes(q)));
+  return `<section class="kutu">
+    <div class="kbas"><h2>Tüm kanallar</h2><span class="not">Kanal = servis × frekans. Hız kart tipinden gelir (MX2H/MXB2P 100G, MQ4H/D/MDB2 200G).</span></div>
+    <div class="filtre" style="margin-bottom:12px"><input id="kAra" placeholder="Servis adı veya frekans ara" value="${esc(durum.kanalFiltre)}" aria-label="Kanal ara">
+      <label style="display:flex;gap:6px;align-items:center;flex-direction:row"><input type="checkbox" id="kSorunlu" style="width:auto" ${durum.kanalSorunlu ? "checked" : ""}>Sadece sorunlu</label><span class="not">${K.length} kanal</span></div>
+    <div class="tablo" style="max-height:70vh"><table><thead><tr><th>Servis</th><th>Hız</th><th class="sayi">Merkez THz</th><th>Zone</th><th>Olması gereken</th><th>Sorunlar</th><th class="sayi">Link</th><th>Rota tipleri</th></tr></thead><tbody>
+    ${K.map(k => `<tr><td class="serv">${esc(k.servis)}</td><td class="mono">${esc(k.hiz)}</td><td class="sayi">${f5(k.merkez)}</td><td>${zchip(k.zone)}</td><td>${zchip(k.olmali)}</td>
+      <td><div class="sorun">${k.sorunlar.length ? k.sorunlar.map(s => `<span class="pill ${SORUN_PILL(s)}" title="${esc(s)}">${esc(s.split(" (")[0])}</span>`).join("") : '<span class="pill p-ok">uygun</span>'}</div></td>
+      <td class="sayi">${k.linkSayisi}</td><td class="not">${esc(k.rotaTipleri.join(", "))}</td></tr>`).join("")}
+    </tbody></table></div></section>`;
+}
+
+/* ---------- yönlendirme ---------- */
+const SAYFA = { genel, talep, yeniden, linkler, kanallar };
+function ciz() {
+  if (!V) return;
+  const ad = SAYFA[location.hash.slice(1)] ? location.hash.slice(1) : "genel";
+  document.querySelectorAll("nav a").forEach(a => a.setAttribute("aria-current", a.getAttribute("href") === "#" + ad ? "page" : "false"));
+  document.getElementById("icerik").innerHTML = SAYFA[ad]();
+  if (ad === "genel") haritaCiz();
+  if (ad === "talep") talepBagla();
+  if (ad === "linkler") { const b = document.querySelector('#lListe [aria-pressed="true"]'); b && b.scrollIntoView({ block: "nearest" }); }
+}
+function talepBagla() {
+  const f = document.getElementById("talepForm");
+  f.onsubmit = talepGonder;
+  tHiz.onchange = () => { tGen.disabled = !!tHiz.value; if (tHiz.value) tGen.value = ""; };
+  const ekle = () => { const v = tDugum.value.trim(); if (!v) return; tRota.value = (tRota.value.trim() ? tRota.value.trim() + " > " : "") + v; tDugum.value = ""; tDugum.focus(); };
+  tEkle.onclick = ekle;
+  tDugum.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); ekle(); } };
+  tOrnek.onclick = () => { tRota.value = "055_ILKADIM_MASTER_5001 > 055_KAVAK_MASTER_ILKADIM/ASARCIK YONU_5040"; tTalep.value ||= "ORNEK-TALEP"; };
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-hm],[data-lm],[data-lt],[data-link],[data-yf],[data-y],[data-alt],#tKaydet,#yenileBtn");
+  if (!t) {
+    if (e.target.closest(".kn")) kanalDetay(e, document.getElementById("talepDetay") ? "talepDetay" : document.getElementById("yenKanal") ? "yenKanal" : "lKanal");
+    return;
+  }
+  if (t.dataset.hm) { durum.haritaMod = t.dataset.hm; ciz(); }
+  else if (t.dataset.lm) { durum.linkMod = t.dataset.lm; document.getElementById("lDetay").innerHTML = linkDetay(durum.linkSecili); }
+  else if (t.dataset.lt) { durum.linkTip = t.dataset.lt; ciz(); }
+  else if (t.dataset.link) { durum.linkSecili = t.dataset.link; if (location.hash !== "#linkler") { location.hash = "linkler"; } else { document.querySelectorAll("#lListe button").forEach(b => b.setAttribute("aria-pressed", b.dataset.link === durum.linkSecili)); document.getElementById("lDetay").innerHTML = linkDetay(durum.linkSecili); } }
+  else if (t.dataset.yf) { durum.yenFiltre = t.dataset.yf; ciz(); }
+  else if (t.dataset.y) { durum.yenSecili = +t.dataset.y; document.querySelectorAll("tr[data-y]").forEach(r => r.classList.toggle("secili", +r.dataset.y === durum.yenSecili)); const d = document.getElementById("yenDetay"); d.innerHTML = yenDetay(V.yeniden[durum.yenSecili]); d.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }); }
+  else if (t.dataset.alt) { const s = durum.sonuc; durum.onizleme = [s.oneri, ...s.alternatifler][+t.dataset.alt]; document.getElementById("talepSonuc").innerHTML = sonucHtml(s); }
+  else if (t.id === "tKaydet") kaydet();
+  else if (t.id === "yenileBtn") yenile();
+});
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.matches("tr.tikla")) e.target.click(); });
+document.addEventListener("input", e => {
+  if (e.target.id === "lAra") { durum.linkFiltre = e.target.value; const p = e.target.selectionStart; ciz(); const i = document.getElementById("lAra"); i.focus(); i.setSelectionRange(p, p); }
+  if (e.target.id === "kAra") { durum.kanalFiltre = e.target.value; const p = e.target.selectionStart; ciz(); const i = document.getElementById("kAra"); i.focus(); i.setSelectionRange(p, p); }
+  if (e.target.id === "kSorunlu") { durum.kanalSorunlu = e.target.checked; ciz(); }
+});
+window.addEventListener("hashchange", ciz);
+let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (document.getElementById("harita")) haritaCiz(); }, 150); });
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => document.getElementById("harita") && haritaCiz());
+
+async function veriYukle(yeniCiz = true) {
+  const url = MOD === "sunucu" ? "/api/veri" : "veri.json";
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`${url} okunamadı (${r.status})`);
+  V = await r.json();
+  LINK = Object.fromEntries(V.linkler.map(l => [l.id, l]));
+  document.getElementById("veriTarih").innerHTML = `veri: <span class="mono">${esc(V.meta.olusturma)}</span>`;
+  const m = document.getElementById("modBilgi");
+  m.textContent = MOD === "sunucu" ? "canlı" : "anlık kopya"; m.className = "pill " + (MOD === "sunucu" ? "p-ok" : "p-n");
+  document.getElementById("yenileBtn").classList.toggle("gizli", MOD !== "sunucu");
+  if (yeniCiz) ciz();
+}
+async function yenile() {
+  const b = document.getElementById("yenileBtn"); b.disabled = true; b.textContent = "Okunuyor…";
+  try { await fetch("/api/yenile", { method: "POST" }); await veriYukle(); } finally { b.disabled = false; b.textContent = "Veriyi yeniden oku"; }
+}
+veriYukle().catch(err => { document.getElementById("icerik").innerHTML = `<div class="hata">Veri yüklenemedi: ${esc(err.message)}</div>`; });
+</script>

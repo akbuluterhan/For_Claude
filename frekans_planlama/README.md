@@ -9,6 +9,23 @@ uygun bir merkez frekans önerir.
 pip install pandas openpyxl pyyaml
 ```
 
+## Tarayıcı arayüzü
+```bash
+python web.py            # http://127.0.0.1:8080
+```
+Ek kurulum gerekmez (Python standart kütüphanesi). Ekranlar:
+- **Genel bakış**: zone kullanım kartları (%70 eşiğiyle), tüm ağın spektrum haritası (bugün / yeniden planlama sonrası), en yoğun linkler
+- **Yeni talep**: talep adı, hız (100G/200G) ve rota girilir. Önerilen frekans, alternatifler, rotadaki her linkin spektrumu gösterilir. "Bu frekansı kaydet" ile `veri/planlanan.csv`'ye yazılır.
+- **Yeniden planlama**: kurala uymayan kanalların taşıma planı; satıra tıklayınca her linkte önce/sonra
+- **Linkler**: link arama, link başına spektrum, zone kullanımı ve kanal listesi
+- **Kanallar**: tüm kanallar, sorunlu olanlar filtrelenebilir
+
+NMS export'larını yeniledikten sonra sağ üstteki "Veriyi yeniden oku" ile sayfayı güncelleyin.
+Ekibin erişmesi için `python web.py --host 0.0.0.0 --port 8080` (yalnızca güvenli iç ağda).
+
+`python web.py --statik cikti/web` sunucusuz bir anlık kopya üretir (index.html + veri.json, bir web
+sunucusundan birlikte sunulmalı). Bu kopyada yeni talep ekranı çalışmaz.
+
 ## Veri
 `veri/` klasörüne NMS export'larını koyun (bu dosyalar git'e eklenmez):
 
