@@ -24,12 +24,22 @@ sayılır (iki ME arası fiber çifti). Transponder ile mux arasındaki geçişl
 ```bash
 python plan.py analiz                    # mevcut durum -> cikti/analiz.xlsx
 python plan.py ara KAVAK                 # ME / link adı ara
-python plan.py ata -g 75 -t TALEP-001 -r "055_ILKADIM_MASTER_5001 > 055_KAVAK_MASTER_ILKADIM/ASARCIK YONU_5040"
-python plan.py ata -g 50 -r "RIZE > KALKANDERE > IKIZDERE" --kaydet
+python plan.py ata -s 200G -t TALEP-001 -r "055_ILKADIM_MASTER_5001 > 055_KAVAK_MASTER_ILKADIM/ASARCIK YONU_5040"
+python plan.py ata -s 100G -r "RIZE > KALKANDERE > IKIZDERE" --kaydet
+python plan.py ata -g 150 -r "FATSA > ORDU"   # hızı tanımlı olmayan servis: genişlik doğrudan
 python plan.py sablon                    # talep_sablonu.xlsx üretir
 python plan.py toplu talepler.xlsx       # tüm talepleri sırayla planlar -> cikti/talep_sonuclari_*.xlsx
 python plan.py planlananlar [--sil TALEP-001]
 ```
+
+### Hız → kanal genişliği
+| Hız | Genişlik | Zone |
+|---|---|---|
+| 100G | 50 GHz | Z1 |
+| 200G | 75 GHz | Z2 |
+
+Talepte `Hiz` verilirse genişlik `config.yaml` → `hiz_genislik` tablosundan alınır. Tanımlı olmayan
+hızlar için `Genislik_GHz` doğrudan yazılır (ör. 100/150 GHz → Z3, diğer → Z4).
 
 ### Rota yazımı
 Düğümler `>` (veya `;`) ile ayrılır. Her düğüm şunlardan biri olabilir:
@@ -84,12 +94,14 @@ NMS'te kanal genişliği yok. Kart tipine göre belirleniyor:
 - `MQ4H/D`, `MDB2` → merkez frekansın grid uyumundan: 75 GHz grid merkezi (191.3125 + 0.075k) ise
   75 GHz, 50 GHz ITU gridinde ise 50 GHz. Bu kartlar mevcut ağda her iki modda da kullanılıyor.
 
-Bu yöntemle mevcut ağda hiç çakışma oluşmuyor. Yanlış olan bir servis varsa
+Bu yöntemle mevcut ağda hiç çakışma oluşmuyor. Servis adında hız geçiyorsa (`_100G_`) hız kuralıyla
+karşılaştırılır. Örneğin 75 GHz slotta duran 100G servisler raporda "KURAL DIŞI" olarak işaretlenir.
+Doluluk hesabında bu servisler ihtiyatlı olarak bulundukları slotun tamamını (75 GHz) kaplıyor sayılır. Yanlış olan bir servis varsa
 `servis_genislik_duzeltme` ile elle düzeltilebilir.
 
 ## Analiz raporu (`cikti/analiz.xlsx`)
 - **Ozet**: zone başına ortalama ve en yüksek link kullanımı, eşiği aşan link sayısı
 - **Link_Kullanim**: her link için zone kullanımları, en büyük boş blok, parçalanma oranı
-- **Servisler**: her servisin merkez frekansı, genişliği, bulunduğu ve olması gereken zone
+- **Servisler**: her servisin merkez frekansı, genişliği, hızı, hız/genişlik uyumu, bulunduğu ve olması gereken zone
 - **Cakismalar**: aynı linkte örtüşen kanallar
 - **Spektrum_Haritasi**: link × 12.5 GHz slot renkli harita (koyu: dolu, açık: boş, kırmızı: çakışma, mor: planlanan)

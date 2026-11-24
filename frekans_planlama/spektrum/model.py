@@ -49,6 +49,7 @@ class Config:
     kart_genislik: dict[str, int | str]
     servis_genislik: dict[str, int]
     hizalama: dict[int, float]
+    hiz_genislik: dict[str, int] = field(default_factory=dict)
 
     @classmethod
     def yukle(cls, yol: str | Path) -> "Config":
@@ -66,7 +67,8 @@ class Config:
                 list(d.get("dolulugu_sayilan_rota_tipleri") or ["Working"]),
                 {k.upper(): (v if str(v).lower() == "grid" else int(v))
                  for k, v in (d.get("kart_genislik") or {}).items()},
-                dict(d.get("servis_genislik_duzeltme") or {}), hiz)
+                dict(d.get("servis_genislik_duzeltme") or {}), hiz,
+                {str(k).upper().replace(" ", ""): int(v) for k, v in (d.get("hiz_genislik") or {}).items()})
         for z in c.zonelar.values():
             z.s0, z.s1 = c.slot(z.baslangic), c.slot(z.bitis)
         return c
@@ -100,6 +102,26 @@ class Config:
         """Kanal kenarının oturması gereken slot adımı."""
         g = self.hizalama.get(int(genislik), self.adim)
         return max(1, int(round(g / self.adim)))
+
+    def genislik_coz(self, hiz: str | None = None, genislik=None) -> int:
+        """Talepteki hız (100G/200G) veya genişlikten kanal genişliğini belirler."""
+        if hiz and str(hiz).strip():
+            h = str(hiz).strip().upper().replace(" ", "")
+            if not h.endswith("G"):
+                h += "G"
+            if h not in self.hiz_genislik:
+                raise ValueError(f"'{hiz}' hızı için genişlik tanımlı değil "
+                                 f"(tanımlı: {', '.join(self.hiz_genislik)}); Genislik_GHz verin")
+            g = self.hiz_genislik[h]
+            if genislik not in (None, "") and int(float(genislik)) != g:
+                raise ValueError(f"{h} için genişlik {g} GHz olmalı, talepte {genislik} verilmiş")
+            return g
+        if genislik in (None, ""):
+            raise ValueError("Hız veya genişlik verilmeli")
+        return int(float(genislik))
+
+    def hiz_tahmini(self, genislik) -> str:
+        return next((h for h, g in self.hiz_genislik.items() if g == int(genislik)), "")
 
     def zone_genislik(self, genislik: int) -> str:
         for kod, z in self.zonelar.items():

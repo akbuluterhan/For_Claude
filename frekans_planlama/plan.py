@@ -3,7 +3,8 @@
 
 Kullanım:
   python plan.py analiz                         # mevcut durumu raporla -> cikti/analiz.xlsx
-  python plan.py ata -g 75 -r "ILKADIM_MASTER > SITE_MASTER > ATAKUM_MASTER" [-t TALEP1] [--kaydet]
+  python plan.py ata -s 200G -r "ILKADIM_MASTER > SITE_MASTER > ATAKUM_MASTER" [-t TALEP1] [--kaydet]
+  python plan.py ata -g 150 -r "..."            # hız tanımlı değilse genişlik doğrudan
   python plan.py toplu talepler.xlsx [--kaydet]  # Excel/CSV'deki tüm talepleri sırayla planla
   python plan.py sablon                          # talep şablonu üret
   python plan.py ara FATSA                       # ME/link adlarında ara (rota yazarken yardımcı)
@@ -67,7 +68,8 @@ def kaydet(a, sonuclar: list[Sonuc]):
 
 def yazdir(s: Sonuc, ag):
     print("=" * 78)
-    print(f"Talep      : {s.talep}   ({s.genislik} GHz -> ana zone {s.ana_zone})")
+    h = f"{s.hiz}, " if s.hiz else ""
+    print(f"Talep      : {s.talep}   ({h}{s.genislik} GHz -> ana zone {s.ana_zone})")
     print(f"Rota       : {len(s.linkler)} link")
     for lid in s.linkler:
         k = f"  %{s.oneri.link_kullanim.get(lid, 0) * 100:5.1f}" if s.oneri else ""
@@ -114,7 +116,12 @@ def cmd_ata(a):
         linkler, uyari = _linkler(a, ag, cozucu, a.rota, a.rota_dosyasi, talep)
     except RotaHatasi as e:
         sys.exit(f"Rota hatası: {e}")
-    s = p.ata(talep, a.genislik, linkler, a.zone, a.alternatif)
+    try:
+        g = cfg.genislik_coz(a.hiz, a.genislik)
+    except ValueError as e:
+        sys.exit(f"Hata: {e}")
+    s = p.ata(talep, g, linkler, a.zone, a.alternatif)
+    s.hiz = (a.hiz or cfg.hiz_tahmini(g)).upper()
     s.uyarilar = uyari + s.uyarilar
     yazdir(s, ag)
     if a.kaydet and s.oneri:
@@ -135,17 +142,24 @@ def cmd_toplu(a):
     sonuclar = []
     for i, r in df.iterrows():
         talep = r.get("Talep") or f"SATIR-{i + 2}"
-        if not str(r.get("Genislik_GHz", "")).strip():
-            print(f"{talep}: Genislik_GHz boş, atlandı")
-            continue
+        hiz = str(r.get("Hiz", "")).strip()
         try:
-            linkler, uyari = _linkler(a, ag, cozucu, r.get("Rota") or None, r.get("RotaDosyasi") or None, talep)
-        except RotaHatasi as e:
-            s = Sonuc(talep, int(float(r["Genislik_GHz"])), "-", [], None, [], "ROTA_HATASI", str(e))
+            g = cfg.genislik_coz(hiz, r.get("Genislik_GHz", ""))
+        except ValueError as e:
+            s = Sonuc(talep, 0, "-", [], None, [], "GIRDI_HATASI", str(e), hiz=hiz)
             sonuclar.append(s)
             yazdir(s, ag)
             continue
-        s = p.ata(talep, int(float(r["Genislik_GHz"])), linkler, r.get("Zone") or None, a.alternatif)
+        hiz = (hiz or cfg.hiz_tahmini(g)).upper()
+        try:
+            linkler, uyari = _linkler(a, ag, cozucu, r.get("Rota") or None, r.get("RotaDosyasi") or None, talep)
+        except RotaHatasi as e:
+            s = Sonuc(talep, g, "-", [], None, [], "ROTA_HATASI", str(e), hiz=hiz)
+            sonuclar.append(s)
+            yazdir(s, ag)
+            continue
+        s = p.ata(talep, g, linkler, r.get("Zone") or None, a.alternatif)
+        s.hiz = hiz
         s.uyarilar = uyari + s.uyarilar
         p.isle(s)  # sonraki talepler bu atamayı dolu görür
         sonuclar.append(s)
@@ -161,13 +175,13 @@ def cmd_toplu(a):
 def cmd_sablon(a):
     out = Path(a.cikti or KOK / "talep_sablonu.xlsx")
     pd.DataFrame([
-        dict(Talep="ORNEK-1", Genislik_GHz=50, Zone="",
+        dict(Talep="ORNEK-1", Hiz="100G", Genislik_GHz="", Zone="",
              Rota="055_ILKADIM_MASTER_5001 > 055_SITE_MASTER_5002 > 055_ATAKUM_MASTER_ILKADIM/SITE YONU_5064",
-             RotaDosyasi="", Not="ME adları '>' ile ayrılır"),
-        dict(Talep="ORNEK-2", Genislik_GHz=75, Zone="", Rota="RIZE > KALKANDERE > IKIZDERE > ISPIR",
+             RotaDosyasi="", Not="Hiz verilirse genişlik otomatik: 100G=50 GHz, 200G=75 GHz"),
+        dict(Talep="ORNEK-2", Hiz="200G", Genislik_GHz="", Zone="", Rota="RIZE > KALKANDERE > IKIZDERE > ISPIR",
              RotaDosyasi="", Not="Site adları da kullanılabilir"),
-        dict(Talep="ORNEK-3", Genislik_GHz=150, Zone="", Rota="FATSA > ORDU", RotaDosyasi="",
-             Not="Zone boş bırakılırsa genişlikten belirlenir"),
+        dict(Talep="ORNEK-3", Hiz="", Genislik_GHz=150, Zone="", Rota="FATSA > ORDU", RotaDosyasi="",
+             Not="Hız tanımlı değilse genişlik doğrudan yazılır; Zone boşsa genişlikten belirlenir"),
     ]).to_excel(out, index=False)
     print(f"Şablon: {out}")
 
@@ -213,7 +227,8 @@ def main():
     s.set_defaults(f=cmd_analiz)
 
     s = sub.add_parser("ata", help="tek talep için frekans öner")
-    s.add_argument("-g", "--genislik", type=int, required=True, help="kanal genişliği GHz (50/75/100/150/...)")
+    s.add_argument("-s", "--hiz", help="servis hızı: 100G (-> 50 GHz) / 200G (-> 75 GHz)")
+    s.add_argument("-g", "--genislik", type=int, help="kanal genişliği GHz (hız yerine; 100/150/... için)")
     s.add_argument("-r", "--rota", help="'A > B > C' (ME veya site adları)")
     s.add_argument("--rota-dosyasi", help="NMS Service Route formatında rota dosyası")
     s.add_argument("-t", "--talep", help="talep/servis adı")
@@ -246,6 +261,8 @@ def main():
     a = ap.parse_args()
     if a.komut == "ata" and not (a.rota or a.rota_dosyasi):
         ap.error("ata: --rota veya --rota-dosyasi gerekli")
+    if a.komut == "ata" and not (a.hiz or a.genislik):
+        ap.error("ata: --hiz (100G/200G) veya --genislik gerekli")
     a.f(a)
 
 

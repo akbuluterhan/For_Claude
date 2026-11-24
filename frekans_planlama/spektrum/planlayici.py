@@ -53,6 +53,7 @@ class Sonuc:
     aciklama: str
     darbogaz: list[str] = field(default_factory=list)
     uyarilar: list[str] = field(default_factory=list)
+    hiz: str = ""
 
 
 SEVIYE_ACIKLAMA = {

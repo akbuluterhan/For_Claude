@@ -13,6 +13,11 @@ spektrum:
   # Kanal kenarları bu noktaya göre hizalanır.
   grid_referans: 191.275
 
+# Servis hızı -> kanal genişliği (GHz). Talepte hız verilirse genişlik buradan alınır.
+hiz_genislik:
+  100G: 50
+  200G: 75
+
 # Zone sınırları kanal KENARI olarak verilir.
 # Tablodaki 191.3 / 192.3 / 193.5 / 195.5 / 196.1 değerleri ITU kanal merkezi gösterimidir.
 # Spektrum kenarı olarak her biri 25 GHz aşağı kayar. Toplam genişlikler (1000/1200/2000/600 GHz) aynı kalır.

@@ -150,6 +150,8 @@ def analiz_raporu(ag: Ag, servisler: pd.DataFrame, uyarilar: list[str], yol: Pat
              ("ME sayısı", len(ag.me_listesi)),
              ("Servis (segment) sayısı", len(servisler)),
              ("Çakışma kaydı", len(cakismalar(ag))),
+             ("Hız/genişlik kuralına uymayan kanal (ör. 100G ama 75 GHz)",
+              int(servisler.HizGenislikUyumu.str.startswith("KURAL DIŞI").sum()) if len(servisler) else 0),
              ("Kural dışı zone'da duran kanal", int((servisler.Zone != servisler.BeklenenZone).sum()) if len(servisler) else 0),
              ("Kullanım eşiği", f"%{int(cfg.esik * 100)}")]
     for a, b in bilgi:
@@ -172,7 +174,7 @@ def analiz_raporu(ag: Ag, servisler: pd.DataFrame, uyarilar: list[str], yol: Pat
 
 def sonuc_satiri(ag: Ag, s: Sonuc) -> dict:
     o = s.oneri
-    return dict(Talep=s.talep, Genislik_GHz=s.genislik, AnaZone=s.ana_zone, Durum=s.durum,
+    return dict(Talep=s.talep, Hiz=s.hiz, Genislik_GHz=s.genislik, AnaZone=s.ana_zone, Durum=s.durum,
                 OnerilenMerkez_THz=o.merkez if o else None,
                 Aralik_THz=f"{o.alt} - {o.ust}" if o else None,
                 AtananZone=o.zone if o else None,

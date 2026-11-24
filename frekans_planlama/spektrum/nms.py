@@ -61,6 +61,23 @@ def genislik_tahmin(cfg: Config, servis: str, kart_t: str | None, merkez: float)
     return 50, f"varsayilan50:{kart_t or '?'}"
 
 
+def hiz_bilgisi(cfg: Config, servis: str, genislik: int) -> dict:
+    """Servis adındaki hız (ör. '_100G_') ile kanal genişliğinin hız kuralına uyumu."""
+    m = re.search(r"(?<!\d)(\d{3})G(?![A-Z])", servis.upper())
+    ad_hiz = f"{m.group(1)}G" if m else ""
+    hiz = ad_hiz or cfg.hiz_tahmini(genislik)
+    kural = cfg.hiz_genislik.get(hiz)
+    if not ad_hiz:
+        uyum = "hız adda yok (genişlikten tahmin)"
+    elif kural is None:
+        uyum = f"{hiz} için kural tanımlı değil"
+    elif kural == genislik:
+        uyum = "uygun"
+    else:
+        uyum = f"KURAL DIŞI: {hiz} {kural} GHz olmalı, {genislik:g} GHz slotta"
+    return dict(Hiz=hiz, HizKaynagi="servis adı" if ad_hiz else "genişlikten", HizGenislikUyumu=uyum)
+
+
 def rotalari_ayristir(df: pd.DataFrame) -> list[RotaSegmenti]:
     """Service Route tablosunu (servis, rota tipi, yön, frekans) segmentlerine böler."""
     seg: list[RotaSegmenti] = []
@@ -111,7 +128,8 @@ def ag_kur(cfg: Config, info_yol: Path | None, rota_yol: Path) -> tuple[Ag, pd.D
             for lid in sg.linkler:
                 ag.kanal_ekle(lid, Kanal(sg.servis, sg.frekans, g, sg.rota_tipi))
         servis_satir.append(dict(Servis=sg.servis, RotaTipi=sg.rota_tipi, Yon=sg.yon,
-                                 Merkez_THz=sg.frekans, Genislik_GHz=g, GenislikKaynagi=kaynak,
+                                 Merkez_THz=sg.frekans, Genislik_GHz=g, **hiz_bilgisi(cfg, sg.servis, g),
+                                 GenislikKaynagi=kaynak,
                                  Zone=cfg.zone_frekans(sg.frekans) or "BANT DIŞI",
                                  BeklenenZone=cfg.zone_genislik(g), LinkSayisi=len(sg.linkler),
                                  DolulugaSayildi=say))
