@@ -1,0 +1,77 @@
+# Frekans atama kuralları — tüm değerler buradan değiştirilebilir.
+#
+# Frekanslar THz, genişlikler GHz cinsindendir.
+# NMS'teki frekans değeri kanalın MERKEZ frekansıdır. Kanal [merkez - g/2, merkez + g/2] aralığını kaplar.
+
+spektrum:
+  # Fiziksel bant kenarları (kanal kenarları bu aralığın dışına taşamaz).
+  # 191.3 THz merkezli 50 GHz kanal 191.275'ten başlar. 75 GHz grid de mevcut verilerde 191.275'e oturuyor.
+  alt_kenar: 191.275
+  ust_kenar: 196.125
+  # Kanal kenarlarının oturacağı adım (flexgrid 12.5 GHz). Merkezler 6.25 GHz gridine düşer.
+  adim_ghz: 12.5
+  # Kanal kenarları bu noktaya göre hizalanır.
+  grid_referans: 191.275
+
+# Zone sınırları kanal KENARI olarak verilir.
+# Tablodaki 191.3 / 192.3 / 193.5 / 195.5 / 196.1 değerleri ITU kanal merkezi gösterimidir.
+# Spektrum kenarı olarak her biri 25 GHz aşağı kayar. Toplam genişlikler (1000/1200/2000/600 GHz) aynı kalır.
+zonelar:
+  Z1:
+    ad: "Zone 1"
+    baslangic: 191.275
+    bitis: 192.275
+    genislikler: [50]
+    dolum_yonu: yukari     # düşük frekanstan yukarı doğru doldurulur
+    overflow: [Z2]
+  Z2:
+    ad: "Zone 2"
+    baslangic: 192.275
+    bitis: 193.475
+    genislikler: [75]
+    dolum_yonu: asagi      # 193.5'ten aşağı doğru doldurulur
+    overflow: [Z1]
+  Z3:
+    ad: "Zone 3"
+    baslangic: 193.475
+    bitis: 195.475
+    genislikler: [100, 150]
+    dolum_yonu: yukari
+    overflow: [Z4]         # Z3 -> Z4 tek yönlü
+  Z4:
+    ad: "Zone 4"
+    baslangic: 195.475
+    bitis: 196.075
+    genislikler: []        # "ihtiyaca göre": diğer zonelara uymayan genişlikler
+    dolum_yonu: asagi
+    overflow: []
+
+# Kanal kenarı hizalaması (GHz). 50/75 GHz kanallar mevcut ağdaki gibi 191.275 referanslı
+# 50/75 GHz gridine oturtulur. Listede olmayan genişlikler 12.5 GHz adımla yerleşir.
+hizalama:
+  50: 50
+  75: 75
+
+# Zone kullanım eşiği (rotadaki HER link için ayrı ayrı kontrol edilir).
+kullanim_esigi: 0.70
+
+# Eşik her yerde aşılıyorsa yine de öneri verilsin mi? (uyarı ile)
+esik_ustu_izin: true
+
+# Hangi rota tipleri spektrum doluluğuna sayılır
+dolulugu_sayilan_rota_tipleri: [Working, Protection, Working Restoration]
+
+# Kart tipi -> kanal genişliği (GHz).
+#   sayı  : sabit genişlik
+#   grid  : merkez frekansın grid uyumundan çıkarılır. 191.275+37.5+75k merkezli -> 75 GHz,
+#           50 GHz ITU gridinde (191.3+0.05k) -> 50 GHz. MQ4H/D ve MDB2 her iki modda da
+#           çalışıyor. Bu yöntemle mevcut ağda hiç çakışma kalmıyor.
+# Listede olmayan kartlar "grid" kabul edilir.
+kart_genislik:
+  MX2H: 50
+  MXB2P: 50
+  MQ4H/D: grid
+  MDB2: grid
+
+# Servis bazında elle genişlik düzeltmesi (User Label -> GHz)
+servis_genislik_duzeltme: {}

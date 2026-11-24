@@ -1,0 +1,6 @@
+# Operatör verisi repoya eklenmez
+veri/*.xlsx
+veri/*.csv
+cikti/
+__pycache__/
+talep_sablonu.xlsx
