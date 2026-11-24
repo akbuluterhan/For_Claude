@@ -6,6 +6,7 @@ Kullanım:
   python plan.py ata -s 200G -r "ILKADIM_MASTER > SITE_MASTER > ATAKUM_MASTER" [-t TALEP1] [--kaydet]
   python plan.py ata -g 150 -r "..."            # hız tanımlı değilse genişlik doğrudan
   python plan.py toplu talepler.xlsx [--kaydet]  # Excel/CSV'deki tüm talepleri sırayla planla
+  python plan.py yeniden                        # kurala uymayan mevcut servisler için yeni frekans + taşıma sırası
   python plan.py sablon                          # talep şablonu üret
   python plan.py ara FATSA                       # ME/link adlarında ara (rota yazarken yardımcı)
   python plan.py planlananlar [--sil TALEP]      # kaydedilmiş (NMS'e henüz girmemiş) planlar
@@ -93,6 +94,23 @@ def cmd_analiz(a):
     out.parent.mkdir(parents=True, exist_ok=True)
     analiz_raporu(ag, sv, uy, out)
     print(f"{len(ag.linkler)} link, {len(ag.me_listesi)} ME, {len(sv)} servis segmenti okundu.")
+    print(f"Rapor: {out}")
+
+
+def cmd_yeniden(a):
+    import copy
+    from spektrum.rapor import yeniden_planlama_raporu
+    from spektrum.yeniden import yeniden_planla
+    cfg, ag, sv, uy = yukle(a)
+    once = copy.deepcopy(ag)
+    satirlar, bs = yeniden_planla(ag)
+    out = Path(a.cikti or KOK / "cikti" / "yeniden_planlama.xlsx")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    yeniden_planlama_raporu(once, ag, satirlar, bs, out)
+    from collections import Counter
+    print(f"{len(bs)} kanal incelendi, {len(satirlar)} kanal yeniden planlandı.")
+    print("Durum:", dict(Counter(t.durum for t in satirlar)))
+    print("Adım :", dict(Counter(t.adim or "geçici/-" for t in satirlar)))
     print(f"Rapor: {out}")
 
 
@@ -245,6 +263,10 @@ def main():
     s.add_argument("--rota-dosyasi", dest="rota_dosyasi_genel", help=argparse.SUPPRESS)
     s.add_argument("-o", "--cikti")
     s.set_defaults(f=cmd_toplu)
+
+    s = sub.add_parser("yeniden", help="kurala uymayan mevcut servisleri yeniden planla")
+    s.add_argument("-o", "--cikti")
+    s.set_defaults(f=cmd_yeniden)
 
     s = sub.add_parser("sablon", help="talep şablonu üret")
     s.add_argument("-o", "--cikti")

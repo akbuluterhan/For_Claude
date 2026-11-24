@@ -207,3 +207,77 @@ def talep_raporu(ag: Ag, sonuclar: list[Sonuc], yol: Path):
                 linkler.append(lid)
     spektrum_haritasi(wb.create_sheet("Spektrum_Rota"), ag, linkler or None, vurgu)
     wb.save(yol)
+
+
+def yeniden_planlama_raporu(ag_once: Ag, ag_sonra: Ag, satirlar, birimler, yol: Path):
+    cfg = ag_once.cfg
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Ozet"
+    plan = []
+    for t in sorted(satirlar, key=lambda t: (t.adim or 99, t.birim.servis)):
+        b = t.birim
+        plan.append(dict(
+            Adim=t.adim or ("-" if t.durum == "DEĞİŞİKLİK YOK" else "GEÇİCİ FREKANS"),
+            Servis=b.servis, Hiz=cfg.hiz_tahmini(b.genislik), Genislik_GHz=b.genislik,
+            MevcutMerkez_THz=b.merkez, MevcutZone=cfg.zone_frekans(b.merkez) or "bant dışı",
+            Sorunlar=" | ".join(b.sorunlar),
+            YeniMerkez_THz=t.yeni_merkez,
+            YeniAralik_THz=(f"{round(t.yeni_merkez - b.genislik / 2000, 6)} - "
+                            f"{round(t.yeni_merkez + b.genislik / 2000, 6)}") if t.yeni_merkez else None,
+            YeniZone=t.yeni_zone, Durum=t.durum,
+            RotadakiMaxZoneKullanimi_pct=round(t.max_kullanim * 100, 1) if t.max_kullanim is not None else None,
+            TasimaSirasi=t.bagimlilik, LinkSayisi=len(b.linkler),
+            RotaTipleri=", ".join(sorted(b.rota_tipleri)), Aciklama=t.aciklama))
+    plan_df = pd.DataFrame(plan)
+
+    tum = []
+    tasinan = {t.birim.anahtar for t in satirlar}
+    for k, b in sorted(birimler.items()):
+        tum.append(dict(Servis=b.servis, Hiz=cfg.hiz_tahmini(b.genislik), Genislik_GHz=b.genislik,
+                        Merkez_THz=b.merkez, Zone=cfg.zone_frekans(b.merkez),
+                        Sonuc="YENİDEN PLANLANDI" if k in tasinan else "kurala uygun, yerinde kalır",
+                        Sorunlar=" | ".join(b.sorunlar)))
+    tum_df = pd.DataFrame(tum)
+
+    def say(metin):
+        return sum(1 for b in birimler.values() if any(s.startswith(metin) for s in b.sorunlar))
+    ozet = [("Toplam kanal (servis × frekans)", len(birimler)),
+            ("Kurala uygun, yerinde kalan", int((tum_df.Sonuc != "YENİDEN PLANLANDI").sum())),
+            ("Yeniden planlanan", len(satirlar)),
+            ("  sorun: YANLIŞ ZONE", say("YANLIŞ ZONE")),
+            ("  sorun: GRID DIŞI", say("GRID DIŞI")),
+            ("  sorun: ZONE SINIRI", say("ZONE SINIRI")),
+            ("  sorun: ÇAKIŞMA", say("ÇAKIŞMA")),
+            ("Frekansı değişecek", sum(1 for t in satirlar if t.durum not in ("DEĞİŞİKLİK YOK", "BLOKE"))),
+            ("  hemen taşınabilir (1. adım)", sum(1 for t in satirlar if t.adim == 1)),
+            ("  sonraki adımlarda", sum(1 for t in satirlar if t.adim and t.adim > 1)),
+            ("  geçici frekans gereken", sum(1 for t in satirlar if t.yeni_merkez and not t.adim
+                                             and t.durum != "DEĞİŞİKLİK YOK")),
+            ("Yer bulunamayan (BLOKE)", sum(1 for t in satirlar if t.durum == "BLOKE")),
+            ("Eşik üstü yerleşen", sum(1 for t in satirlar if "ESIK_USTU" in t.durum)),
+            ("Overflow zone'una yerleşen", sum(1 for t in satirlar if t.durum.startswith("OVERFLOW")))]
+    _tablo(ws, pd.DataFrame(ozet, columns=["Kalem", "Adet"]), {"Kalem": 45})
+    r = ws.max_row + 2
+    for satir in ["Yöntem:",
+                  "1) Kurala uyan kanallar yerinde sabit tutuldu, sorunlu kanallar ağdan çıkarıldı.",
+                  "2) Sorunlu kanallar çok linkli/geniş olandan başlayarak atama kurallarıyla yerleştirildi:",
+                  "   hız->zone, rotanın TÜM linklerinde (working+protection+restoration) ortak boş, bitişik spektrum,",
+                  "   %70 eşiği, overflow sırası ve zone dolum yönü.",
+                  "3) Taşıma sırası: 1. adımdakilerin hedefi bugün boş. Sonraki adımlar, önceki taşımaların",
+                  "   boşalttığı spektrumu kullanır. Frekans değişimi servis kesintisi gerektirir, bakım penceresinde yapılmalı."]:
+        ws.cell(r, 1, satir)
+        r += 1
+
+    _tablo(wb.create_sheet("Tasima_Plani"), plan_df,
+           {"Servis": 55, "Sorunlar": 70, "TasimaSirasi": 50, "Aciklama": 50})
+    _tablo(wb.create_sheet("Tum_Kanallar"), tum_df, {"Servis": 55, "Sorunlar": 70})
+
+    once, sonra = link_tablosu(ag_once), link_tablosu(ag_sonra)
+    kol = [f"{z}_Kullanim_%" for z in cfg.zonelar]
+    kar = once[["Link", "Tip"] + kol].merge(sonra[["Link"] + kol], on="Link", suffixes=("_once", "_sonra"))
+    kar = kar[["Link", "Tip"] + [f"{c}_{s}" for c in kol for s in ("once", "sonra")]]
+    _tablo(wb.create_sheet("Link_Kullanim_OnceSonra"), kar, {"Link": 70})
+    spektrum_haritasi(wb.create_sheet("Spektrum_Once"), ag_once)
+    spektrum_haritasi(wb.create_sheet("Spektrum_Sonra"), ag_sonra)
+    wb.save(yol)

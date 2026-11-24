@@ -30,6 +30,7 @@ python plan.py ata -g 150 -r "FATSA > ORDU"   # hızı tanımlı olmayan servis:
 python plan.py sablon                    # talep_sablonu.xlsx üretir
 python plan.py toplu talepler.xlsx       # tüm talepleri sırayla planlar -> cikti/talep_sonuclari_*.xlsx
 python plan.py planlananlar [--sil TALEP-001]
+python plan.py yeniden                   # kurala uymayan mevcut servisler -> cikti/yeniden_planlama.xlsx
 ```
 
 ### Hız → kanal genişliği
@@ -102,6 +103,22 @@ Raporun Servisler sayfasındaki `GridUyumu` sütunu, kanalın kendi genişliğin
 (kenarlar 191.275 + k×genişlik) oturup oturmadığını gösterir. Grid dışı 200G kanallar komşu
 kanallarla örtüşebilir; bu örtüşmeler Cakismalar sayfasında listelenir. Gerçek genişlik farklıysa
 `servis_genislik_duzeltme` ile servis bazında düzeltilebilir.
+
+## Mevcut servislerin yeniden planlanması (`python plan.py yeniden`)
+Kurala uymayan kanallar bulunur: yanlış zone, grid dışı, zone sınırına taşan veya çakışan.
+Bunlar ağdan çıkarılır ve kurala uyan kanallar yerinde sabit kalır. Sorunlu kanallar, çok linkli
+ve geniş olandan başlayarak normal atama kurallarıyla yeniden yerleştirilir. Her kanalın rotasındaki
+tüm linkler (working, protection, restoration) kontrol edilir. Çakışan iki kanaldan kurala uyan
+yerinde kalır, uymayan taşınır.
+
+Rapor (`cikti/yeniden_planlama.xlsx`):
+- **Ozet**: sorun türlerine göre sayılar, kaç kanalın hemen taşınabileceği
+- **Tasima_Plani**: her sorunlu kanal için mevcut frekans, sorunlar, yeni frekans ve zone, taşıma adımı.
+  1. adımdakilerin hedefi bugün boş. 2. adımdakiler, 1. adımdaki taşımaların boşalttığı spektrumu
+  kullanır. Döngüsel bağımlılıkta kalanlar "GEÇİCİ FREKANS" olarak işaretlenir.
+- **Tum_Kanallar**: tüm kanallar ve sonuçları (yerinde kalır / yeniden planlandı)
+- **Link_Kullanim_OnceSonra**: link başına zone kullanımının önceki ve sonraki hali
+- **Spektrum_Once / Spektrum_Sonra**: renkli spektrum haritaları
 
 ## Analiz raporu (`cikti/analiz.xlsx`)
 - **Ozet**: zone başına ortalama ve en yüksek link kullanımı, eşiği aşan link sayısı
