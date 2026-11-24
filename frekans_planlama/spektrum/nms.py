@@ -47,35 +47,30 @@ class RotaSegmenti:
     linkler: list[str] = field(default_factory=list)
 
 
-def genislik_tahmin(cfg: Config, servis: str, kart_t: str | None, merkez: float) -> tuple[int, str]:
+def _gridde(cfg: Config, merkez: float, genislik: int) -> bool:
+    """Merkez, o genişliğin standart gridinde mi? (kenarlar 191.275 + k*genişlik)"""
+    off = (merkez - cfg.ref) * 1000 - genislik / 2
+    return abs(off / genislik - round(off / genislik)) < 1e-6
+
+
+def genislik_tahmin(cfg: Config, servis: str, kart_t: str | None, merkez: float) -> tuple[int, str, str]:
+    """(genişlik GHz, kaynak, hız)"""
     if servis in cfg.servis_genislik:
-        return int(cfg.servis_genislik[servis]), "elle"
-    k = cfg.kart_genislik.get(kart_t) if kart_t else None
-    if isinstance(k, int):
-        return k, f"kart:{kart_t}"
-    off = round((merkez - cfg.ref) * 1000, 4)  # GHz, alt kenardan
-    if abs((off - 37.5) / 75 - round((off - 37.5) / 75)) < 1e-6:
-        return 75, f"grid75:{kart_t or '?'}"
-    if abs((off - 25) / 50 - round((off - 25) / 50)) < 1e-6:
-        return 50, f"grid50:{kart_t or '?'}"
-    return 50, f"varsayilan50:{kart_t or '?'}"
+        g = int(cfg.servis_genislik[servis])
+        return g, "elle", cfg.hiz_tahmini(g)
+    hiz = cfg.kart_hiz.get(kart_t) if kart_t else None
+    if hiz and hiz in cfg.hiz_genislik:
+        return cfg.hiz_genislik[hiz], f"kart:{kart_t}", hiz
+    for g in (75, 50):
+        if _gridde(cfg, merkez, g):
+            return g, f"grid{g}:{kart_t or '?'}", cfg.hiz_tahmini(g)
+    return 50, f"varsayilan50:{kart_t or '?'}", cfg.hiz_tahmini(50)
 
 
-def hiz_bilgisi(cfg: Config, servis: str, genislik: int) -> dict:
-    """Servis adındaki hız (ör. '_100G_') ile kanal genişliğinin hız kuralına uyumu."""
-    m = re.search(r"(?<!\d)(\d{3})G(?![A-Z])", servis.upper())
-    ad_hiz = f"{m.group(1)}G" if m else ""
-    hiz = ad_hiz or cfg.hiz_tahmini(genislik)
-    kural = cfg.hiz_genislik.get(hiz)
-    if not ad_hiz:
-        uyum = "hız adda yok (genişlikten tahmin)"
-    elif kural is None:
-        uyum = f"{hiz} için kural tanımlı değil"
-    elif kural == genislik:
-        uyum = "uygun"
-    else:
-        uyum = f"KURAL DIŞI: {hiz} {kural} GHz olmalı, {genislik:g} GHz slotta"
-    return dict(Hiz=hiz, HizKaynagi="servis adı" if ad_hiz else "genişlikten", HizGenislikUyumu=uyum)
+def grid_uyumu(cfg: Config, merkez: float, genislik: int) -> str:
+    if genislik not in cfg.hizalama:
+        return "-"
+    return "uygun" if _gridde(cfg, merkez, genislik) else f"GRID DIŞI ({genislik:g} GHz gridine oturmuyor)"
 
 
 def rotalari_ayristir(df: pd.DataFrame) -> list[RotaSegmenti]:
@@ -122,13 +117,14 @@ def ag_kur(cfg: Config, info_yol: Path | None, rota_yol: Path) -> tuple[Ag, pd.D
         if sg.frekans is None:
             uyarilar.append(f"{sg.servis} ({sg.rota_tipi}/{sg.yon}): frekans bulunamadı, atlandı")
             continue
-        g, kaynak = genislik_tahmin(cfg, sg.servis, sg.uc_kart, sg.frekans)
+        g, kaynak, hiz = genislik_tahmin(cfg, sg.servis, sg.uc_kart, sg.frekans)
         say = sg.rota_tipi in cfg.rota_tipleri
         if say:
             for lid in sg.linkler:
                 ag.kanal_ekle(lid, Kanal(sg.servis, sg.frekans, g, sg.rota_tipi))
         servis_satir.append(dict(Servis=sg.servis, RotaTipi=sg.rota_tipi, Yon=sg.yon,
-                                 Merkez_THz=sg.frekans, Genislik_GHz=g, **hiz_bilgisi(cfg, sg.servis, g),
+                                 Merkez_THz=sg.frekans, Hiz=hiz, Genislik_GHz=g,
+                                 GridUyumu=grid_uyumu(cfg, sg.frekans, g),
                                  GenislikKaynagi=kaynak,
                                  Zone=cfg.zone_frekans(sg.frekans) or "BANT DIŞI",
                                  BeklenenZone=cfg.zone_genislik(g), LinkSayisi=len(sg.linkler),

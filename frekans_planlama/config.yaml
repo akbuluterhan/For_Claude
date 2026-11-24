@@ -66,17 +66,15 @@ esik_ustu_izin: true
 # Hangi rota tipleri spektrum doluluğuna sayılır
 dolulugu_sayilan_rota_tipleri: [Working, Protection, Working Restoration]
 
-# Kart tipi -> kanal genişliği (GHz).
-#   sayı  : sabit genişlik
-#   grid  : merkez frekansın grid uyumundan çıkarılır. 191.275+37.5+75k merkezli -> 75 GHz,
-#           50 GHz ITU gridinde (191.3+0.05k) -> 50 GHz. MQ4H/D ve MDB2 her iki modda da
-#           çalışıyor. Bu yöntemle mevcut ağda hiç çakışma kalmıyor.
-# Listede olmayan kartlar "grid" kabul edilir.
-kart_genislik:
-  MX2H: 50
-  MXB2P: 50
-  MQ4H/D: grid
-  MDB2: grid
+# Kart tipi -> hat hızı. Kanal genişliği hızdan (hiz_genislik) gelir.
+# Servis adı (User Label) dikkate alınmaz; hız kartın hat tarafı hızıdır.
+# Listede olmayan kartlarda genişlik merkez frekansın grid uyumundan tahmin edilir
+# (191.3125+0.075k -> 75 GHz, 191.3+0.05k -> 50 GHz).
+kart_hiz:
+  MX2H: 100G
+  MXB2P: 100G
+  MQ4H/D: 200G
+  MDB2: 200G
 
 # Servis bazında elle genişlik düzeltmesi (User Label -> GHz)
 servis_genislik_duzeltme: {}

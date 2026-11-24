@@ -150,8 +150,8 @@ def analiz_raporu(ag: Ag, servisler: pd.DataFrame, uyarilar: list[str], yol: Pat
              ("ME sayısı", len(ag.me_listesi)),
              ("Servis (segment) sayısı", len(servisler)),
              ("Çakışma kaydı", len(cakismalar(ag))),
-             ("Hız/genişlik kuralına uymayan kanal (ör. 100G ama 75 GHz)",
-              int(servisler.HizGenislikUyumu.str.startswith("KURAL DIŞI").sum()) if len(servisler) else 0),
+             ("Grid dışı kanal (ör. 200G ama 75 GHz gridinde değil)",
+              int(servisler.GridUyumu.str.startswith("GRID").sum()) if len(servisler) else 0),
              ("Kural dışı zone'da duran kanal", int((servisler.Zone != servisler.BeklenenZone).sum()) if len(servisler) else 0),
              ("Kullanım eşiği", f"%{int(cfg.esik * 100)}")]
     for a, b in bilgi:

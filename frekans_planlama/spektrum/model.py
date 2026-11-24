@@ -46,7 +46,7 @@ class Config:
     esik: float
     esik_ustu_izin: bool
     rota_tipleri: list[str]
-    kart_genislik: dict[str, int | str]
+    kart_hiz: dict[str, str]
     servis_genislik: dict[str, int]
     hizalama: dict[int, float]
     hiz_genislik: dict[str, int] = field(default_factory=dict)
@@ -65,8 +65,7 @@ class Config:
                 float(sp.get("grid_referans", sp["alt_kenar"])), zonelar,
                 float(d.get("kullanim_esigi", 0.7)), bool(d.get("esik_ustu_izin", True)),
                 list(d.get("dolulugu_sayilan_rota_tipleri") or ["Working"]),
-                {k.upper(): (v if str(v).lower() == "grid" else int(v))
-                 for k, v in (d.get("kart_genislik") or {}).items()},
+                {k.upper(): str(v).upper().replace(" ", "") for k, v in (d.get("kart_hiz") or {}).items()},
                 dict(d.get("servis_genislik_duzeltme") or {}), hiz,
                 {str(k).upper().replace(" ", ""): int(v) for k, v in (d.get("hiz_genislik") or {}).items()})
         for z in c.zonelar.values():

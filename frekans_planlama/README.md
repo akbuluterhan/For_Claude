@@ -89,19 +89,23 @@ Algoritma:
    - **BLOKE**: uygun yer yok. Rotadan çıkarıldığında atamayı mümkün kılan linkler **darboğaz** olarak listelenir.
 
 ### Kanal genişliği çıkarımı (mevcut servisler)
-NMS'te kanal genişliği yok. Kart tipine göre belirleniyor:
-- `MX2H`, `MXB2P` → 50 GHz
-- `MQ4H/D`, `MDB2` → merkez frekansın grid uyumundan: 75 GHz grid merkezi (191.3125 + 0.075k) ise
-  75 GHz, 50 GHz ITU gridinde ise 50 GHz. Bu kartlar mevcut ağda her iki modda da kullanılıyor.
+Servis adı (User Label) dikkate alınmaz. Hız, uç kartın hat tarafı hızından gelir
+(`config.yaml` → `kart_hiz`), genişlik de hızdan (`hiz_genislik`):
 
-Bu yöntemle mevcut ağda hiç çakışma oluşmuyor. Servis adında hız geçiyorsa (`_100G_`) hız kuralıyla
-karşılaştırılır. Örneğin 75 GHz slotta duran 100G servisler raporda "KURAL DIŞI" olarak işaretlenir.
-Doluluk hesabında bu servisler ihtiyatlı olarak bulundukları slotun tamamını (75 GHz) kaplıyor sayılır. Yanlış olan bir servis varsa
-`servis_genislik_duzeltme` ile elle düzeltilebilir.
+| Kart | Hız | Kanal |
+|---|---|---|
+| MX2H, MXB2P | 100G | 50 GHz |
+| MQ4H/D, MDB2 | 200G | 75 GHz |
+
+Listede olmayan kartlarda genişlik, merkez frekansın grid uyumundan tahmin edilir.
+Raporun Servisler sayfasındaki `GridUyumu` sütunu, kanalın kendi genişliğinin standart gridine
+(kenarlar 191.275 + k×genişlik) oturup oturmadığını gösterir. Grid dışı 200G kanallar komşu
+kanallarla örtüşebilir; bu örtüşmeler Cakismalar sayfasında listelenir. Gerçek genişlik farklıysa
+`servis_genislik_duzeltme` ile servis bazında düzeltilebilir.
 
 ## Analiz raporu (`cikti/analiz.xlsx`)
 - **Ozet**: zone başına ortalama ve en yüksek link kullanımı, eşiği aşan link sayısı
 - **Link_Kullanim**: her link için zone kullanımları, en büyük boş blok, parçalanma oranı
-- **Servisler**: her servisin merkez frekansı, genişliği, hızı, hız/genişlik uyumu, bulunduğu ve olması gereken zone
+- **Servisler**: her servisin merkez frekansı, hızı (karttan), genişliği, grid uyumu, bulunduğu ve olması gereken zone
 - **Cakismalar**: aynı linkte örtüşen kanallar
 - **Spektrum_Haritasi**: link × 12.5 GHz slot renkli harita (koyu: dolu, açık: boş, kırmızı: çakışma, mor: planlanan)
