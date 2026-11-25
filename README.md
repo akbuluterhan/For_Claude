@@ -1,8 +1,20 @@
 # Oyunlar
 
-Tarayıcıda oynanan, kurulum gerektirmeyen oyunlar. Ana sayfa (`index.html`) iki oyuna da bağlantı verir.
+Tarayıcıda oynanan, kurulum gerektirmeyen oyunlar. Ana sayfa (`index.html`) tüm oyunlara bağlantı verir.
 
 Adres (GitHub Pages açıkken): https://akbuluterhan.github.io/For_Claude/
+
+## Yıldız Kalkanı
+
+`yildiz/index.html` tek dosyadır. Eski Atari oyunları tarzında dikey uzay atış oyunu.
+
+- Parmağını ekranın herhangi bir yerine koy ve sürükle. Gemi kendiliğinden ateş eder.
+- Düşmanlar dalgalar halinde gelir: dalan pembe okçular, zikzak çizen camgöbeği böcekler, ateş eden yeşil uçan daireler, vurunca ikiye bölünen göktaşları.
+- Her 5. dalgada ana gemi gelir; canı yarıya inince öfkelenir.
+- **P** ateş gücü (4 seviye), **S** 10 saniyelik kalkan, **B** bomba (ekrandaki mermileri siler), **+** fazladan can.
+- Vurulunca ateş gücü bir seviye düşer. 3 canla başlarsın, en fazla 5 can.
+
+**Klavye:** ok tuşları / WASD hareket · P veya Esc duraklat
 
 ## Demir Kafa
 
