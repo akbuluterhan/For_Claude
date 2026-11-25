@@ -1,0 +1,53 @@
+name: Android paketi
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths: ["virak/**", "android/**", ".github/workflows/android.yml"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK bileşenleri
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Yükleme anahtarını hazırla
+        env:
+          KEYSTORE_BASE64: ${{ secrets.VIRAK_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "VIRAK_KEYSTORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+            echo "Play Store yükleme anahtarı bulundu."
+          else
+            echo "::warning::VIRAK_KEYSTORE_BASE64 secret yok. Paket debug anahtarıyla imzalanacak: telefonda denemek için olur, Play Store kabul etmez."
+          fi
+
+      - name: Derle (AAB + APK)
+        working-directory: android
+        env:
+          VIRAK_KEYSTORE_PASSWORD: ${{ secrets.VIRAK_KEYSTORE_PASSWORD }}
+          VIRAK_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease assembleRelease
+
+      - name: Dosyaları topla
+        run: |
+          mkdir out
+          cp android/app/build/outputs/bundle/release/app-release.aab "out/virak-${{ github.run_number }}.aab"
+          cp android/app/build/outputs/apk/release/app-release.apk "out/virak-${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: virak-${{ github.run_number }}
+          path: out/

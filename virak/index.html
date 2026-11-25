@@ -11,8 +11,7 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="fonts/fonts.css">
 <style>
 /* Layout: one full-screen canvas (night pond) with a single overlay card for start / game over. Single dark look by design. */
 :root {
@@ -728,6 +727,9 @@ $("resumeBtn").addEventListener("click", resume);
 $("quitBtn").addEventListener("click", toMenu);
 $("muteBtn").addEventListener("click", () => { muted = !muted; store.set("virak.muted", muted); updateMute(); });
 document.addEventListener("visibilitychange", () => { if (document.hidden) pause(); });
+// Android app back button: pause / resume instead of closing mid-game
+window.virakPause = () => pause();
+window.virakBack = () => { if (state === "play") { pause(); return true; } if (state === "pause") { resume(); return true; } return false; };
 window.addEventListener("resize", resize);
 window.addEventListener("keydown", e => { if (e.key === "Escape" || e.key === "p") state === "pause" ? resume() : pause(); });
 
