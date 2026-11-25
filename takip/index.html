@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saha İlerleme Takibi</title>
+<meta name="theme-color" content="#1b64be">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f4f5f7; --surface:#ffffff; --surface-2:#f9f9fa; --line:#e4e6ea; --grid:#e7e7e7;
+  --ink:#191919; --ink-2:#626770; --ink-3:#8b9099;
+  --accent:#1b64be; --accent-soft:#e3eefc;
+  --s-done:#0aac23; --s-plan:#257de0; --s-late:#dc3c3d; --s-wait:#d5d8dd; --s-na:#eceef1;
+  --warn:#fbb315; --warn-soft:#fff5dc; --crit-soft:#fdeaea; --good-soft:#e5f7e8;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --page:#0b0b0b; --surface:#191919; --surface-2:#202020; --line:#2e2e2e; --grid:#303030;
+    --ink:#efefef; --ink-2:#a3a3a3; --ink-3:#7c7c7c;
+    --accent:#519ced; --accent-soft:#16283f;
+    --s-done:#0aac23; --s-plan:#338ced; --s-late:#eb6263; --s-wait:#3a3a3a; --s-na:#262626;
+    --warn-soft:#3a2f12; --crit-soft:#3a1a1a; --good-soft:#12301a;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#0b0b0b; --surface:#191919; --surface-2:#202020; --line:#2e2e2e; --grid:#303030;
+  --ink:#efefef; --ink-2:#a3a3a3; --ink-3:#7c7c7c;
+  --accent:#519ced; --accent-soft:#16283f;
+  --s-done:#0aac23; --s-plan:#338ced; --s-late:#eb6263; --s-wait:#3a3a3a; --s-na:#262626;
+  --warn-soft:#3a2f12; --crit-soft:#3a1a1a; --good-soft:#12301a;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px}
+header.top{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.toprow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand svg{flex:none}
+.brand h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+.brand small{display:block;color:var(--ink-2);font-size:12px;font-weight:400}
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 11px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--s-late)}
+.btn.sm{padding:4px 8px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.tabs{display:flex;gap:2px;overflow-x:auto}
+.tab{border:0;background:none;padding:9px 14px;cursor:pointer;color:var(--ink-2);border-bottom:2px solid transparent;font-weight:550}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:12px 0 4px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.chip .n{opacity:.7;margin-left:4px;font-variant-numeric:tabular-nums}
+select,input[type=search],input[type=text],input[type=date],textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 8px;min-width:0}
+input[type=search]{flex:1 1 180px;max-width:320px}
+main{padding:8px 0 48px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:16px}
+.card h2{font-size:14px;margin:0 0 2px;font-weight:650}
+.card .sub{color:var(--ink-2);font-size:12px;margin:0 0 12px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:12px}
+.kpi{padding:14px 16px}
+.kpi .lbl{color:var(--ink-2);font-size:12px;display:flex;align-items:center;gap:6px}
+.kpi .val{font-size:28px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:2px}
+.kpi .val small{font-size:14px;color:var(--ink-2);font-weight:500}
+.kpi .meter{height:6px;background:var(--s-wait);border-radius:3px;margin-top:8px;overflow:hidden}
+.kpi .meter i{display:block;height:100%;background:var(--s-done);border-radius:3px}
+.two{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--ink-2);font-size:12px;margin-bottom:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+/* stage bars */
+.stages{display:grid;grid-template-columns:minmax(90px,140px) 1fr 64px;gap:6px 10px;align-items:center}
+.stages .nm{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stages .track{height:14px;background:transparent;border-left:1px solid var(--grid);position:relative}
+.stages .track i{position:absolute;left:0;top:0;bottom:0;background:var(--s-plan);border-radius:0 4px 4px 0;min-width:2px}
+.stages .ct{font-size:12px;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+.pipehead{font-size:12px;font-weight:650;color:var(--ink-2);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
+.pipehead:first-of-type{margin-top:4px}
+/* region bars */
+.regions{display:grid;grid-template-columns:minmax(80px,120px) 1fr auto;gap:8px 10px;align-items:center}
+.stack{display:flex;gap:2px;height:16px}
+.stack i{display:block;height:100%}
+.stack i:first-child{border-radius:4px 0 0 4px}
+.stack i:last-child{border-radius:0 4px 4px 0}
+.stack i:only-child{border-radius:4px}
+.regions .ct{font-size:12px;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+/* lists */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line);cursor:pointer}
+.list li:first-child{border-top:0}
+.list li:hover .ttl{color:var(--accent)}
+.list .when{flex:none;width:86px;font-variant-numeric:tabular-nums;font-size:12px;color:var(--ink-2);padding-top:1px}
+.list .ttl{font-weight:550}
+.list .meta{font-size:12px;color:var(--ink-2)}
+.empty{color:var(--ink-2);padding:12px 0;font-size:13px}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:999px;white-space:nowrap;line-height:1.5}
+.b-done{background:var(--good-soft);color:var(--ink)}
+.b-plan{background:var(--accent-soft);color:var(--ink)}
+.b-late{background:var(--crit-soft);color:var(--ink)}
+.b-wait{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.b-na{background:var(--surface-2);color:var(--ink-3)}
+.b-block{background:var(--warn-soft);color:var(--ink)}
+.badge .dot{width:7px;height:7px;border-radius:50%}
+/* table */
+.tablecard{padding:0;overflow:hidden}
+.tbl-tools{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:12px;color:var(--ink-2);font-weight:600;background:var(--surface-2);white-space:nowrap;position:sticky;top:0;cursor:pointer;user-select:none}
+th[data-sort]:hover{color:var(--ink)}
+th .arr{opacity:.6;font-size:10px}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+td .nm{font-weight:600}
+td .id{font-size:12px;color:var(--ink-2)}
+td.num{font-variant-numeric:tabular-nums;text-align:right}
+.strip{display:flex;gap:2px}
+.strip i{width:12px;height:14px;border-radius:3px;display:block;background:var(--s-wait)}
+.st-done{background:var(--s-done)!important}
+.st-plan{background:var(--s-plan)!important}
+.st-late{background:var(--s-late)!important}
+.st-wait{background:var(--s-wait)!important}
+.st-na{background:repeating-linear-gradient(135deg,var(--s-na) 0 3px,var(--s-wait) 3px 4px)!important}
+.pbar{display:flex;align-items:center;gap:8px;min-width:110px}
+.pbar .b{flex:1;height:6px;background:var(--s-wait);border-radius:3px;overflow:hidden}
+.pbar .b i{display:block;height:100%;background:var(--s-done)}
+.pbar span{font-size:12px;font-variant-numeric:tabular-nums;width:34px;text-align:right;color:var(--ink-2)}
+.note{font-size:12px;color:var(--ink-2);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:760px){
+  .hide-m{display:none}
+  th,td{padding:8px 10px}
+  .strip i{width:8px}
+}
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40;display:none}
+.scrim.open{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(620px,100%);background:var(--surface);z-index:41;transform:translateX(100%);transition:transform .2s ease;display:flex;flex-direction:column;border-left:1px solid var(--line)}
+.drawer.open{transform:none}
+.dhead{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+.dhead h3{margin:0;font-size:17px}
+.dhead .meta{color:var(--ink-2);font-size:12px;margin-top:2px}
+.dbody{overflow-y:auto;padding:16px;flex:1}
+.dsec{margin-bottom:20px}
+.dsec h4{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-2);margin:0 0 8px}
+.info{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.info div{background:var(--surface-2);border-radius:8px;padding:6px 9px}
+.info b{display:block;font-size:11px;color:var(--ink-2);font-weight:500}
+.info input{width:100%;border:0;background:transparent;padding:0;font-weight:550}
+.steps{display:flex;flex-direction:column;gap:0}
+.step{display:grid;grid-template-columns:18px minmax(80px,1fr) 118px 130px 130px;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.step:first-child{border-top:0}
+.step .lbl{font-weight:550;font-size:13px}
+.step .lbl small{display:block;font-weight:400;color:var(--ink-2);font-size:11.5px;white-space:normal}
+.step select,.step input{width:100%;padding:4px 6px;font-size:13px}
+.step .cap{font-size:10.5px;color:var(--ink-3);display:block;margin-bottom:1px}
+.step .mk{width:14px;height:14px;border-radius:4px}
+@media (max-width:560px){
+  .step{grid-template-columns:18px 1fr 1fr;}
+  .step .lbl{grid-column:2 / 4}
+  .step .c-st{grid-column:2 / 4}
+  .step .c-pl{grid-column:2}
+  .step .c-ac{grid-column:3}
+}
+textarea{width:100%;min-height:70px;resize:vertical}
+.hist{list-style:none;margin:0;padding:0;font-size:12.5px}
+.hist li{padding:5px 0;border-top:1px solid var(--line);display:flex;gap:10px}
+.hist li:first-child{border-top:0}
+.hist time{color:var(--ink-2);flex:none;width:112px;font-variant-numeric:tabular-nums}
+.check{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+/* empty state */
+.hero{max-width:640px;margin:40px auto;text-align:center;padding:32px 24px}
+.hero h2{font-size:20px;margin:12px 0 6px}
+.hero p{color:var(--ink-2);margin:0 0 18px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:26px;margin-top:6px}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.small{font-size:12px;color:var(--ink-2)}
+#tip{position:fixed;z-index:60;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 9px;border-radius:6px;max-width:260px;display:none;line-height:1.4;white-space:pre-line}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:8px;z-index:70;display:none;max-width:calc(100% - 32px);font-size:13px}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:18px;width:min(420px,calc(100% - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog h3{margin:0 0 12px;font-size:16px}
+dialog label{display:block;font-size:12px;color:var(--ink-2);margin:8px 0 3px}
+dialog input,dialog select{width:100%}
+dialog .row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="toprow">
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#1b64be"/><path d="M7 19l4.5-5 3.5 3 6-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div><h1>Saha İlerleme Takibi</h1><small id="subtitle">DWDM saha kurulumları · Faz 1–3</small></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="bImport" title="Faz-1-2 ve/veya Faz-3 Excel dosyalarını seç">⬆ Excel yükle</button>
+        <button class="btn" id="bExport" title="Güncel durumu Excel olarak indir">⬇ Excel'e aktar</button>
+        <button class="btn" id="bBackup" title="Tüm veriyi (notlar, geçmiş dahil) JSON yedek olarak indir">Yedek al</button>
+        <button class="btn" id="bRestore">Yedek yükle</button>
+        <button class="btn" id="bNew">+ Saha</button>
+        <button class="btn" id="bTheme" title="Tema" aria-label="Tema değiştir"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5a6.5 6.5 0 0 1 0 13z" fill="currentColor"/></svg></button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-view="ozet" aria-selected="true">Özet</button>
+      <button class="tab" role="tab" data-view="sahalar" aria-selected="false">Sahalar</button>
+      <button class="tab" role="tab" data-view="plan" aria-selected="false">Plan &amp; gecikmeler</button>
+    </nav>
+  </div>
+</header>
+<input type="file" id="fImport" accept=".xlsx,.xls,.xlsm" multiple hidden>
+<input type="file" id="fRestore" accept=".json,application/json" hidden>
+
+<div class="wrap">
+  <div class="filters" id="filters">
+    <div class="chips" id="phaseChips"></div>
+    <select id="fRegion" aria-label="Bölge"></select>
+    <select id="fCenter" aria-label="Merkez"></select>
+    <select id="fStatus" aria-label="Durum">
+      <option value="">Tüm durumlar</option>
+      <option value="done">Tamamlandı</option>
+      <option value="progress">Devam ediyor</option>
+      <option value="notstarted">Başlamadı</option>
+      <option value="late">Gecikmesi olan</option>
+      <option value="blocked">Engel / sorun var</option>
+    </select>
+    <input type="search" id="fSearch" placeholder="Saha, Site ID, not ara…">
+  </div>
+  <main id="main"></main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div id="tip"></div>
+<div id="toast"></div>
+
+<dialog id="dNew">
+  <form method="dialog" id="newForm">
+    <h3>Yeni saha ekle</h3>
+    <label>Saha adı</label><input name="name" required>
+    <label>Faz</label>
+    <select name="phase"><option>Faz-1</option><option>Faz-2</option><option>Faz-1-2</option><option selected>Faz-3</option></select>
+    <label>Bölge</label><input name="region" list="dlRegion">
+    <label>Merkez / İl</label><input name="center">
+    <label>Site ID</label><input name="siteId">
+    <datalist id="dlRegion"></datalist>
+    <div class="row"><button class="btn" value="cancel" formnovalidate>Vazgeç</button><button class="btn primary" value="ok">Ekle</button></div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+/* ---------- model ---------- */
+const PIPES = {
+  F12: { name: "Faz 1-2 akışı", steps: [
+    ["siparis","Sipariş"],["fatura","Fatura kesim"],["survey","Survey"],["ekspertiz","Ekspertiz"],
+    ["sevkiyat","Saha sevkiyat"],["montaj","Saha montaj"],["kabul","Geçici kabul"] ]},
+  F3: { name: "Faz 3 akışı", steps: [
+    ["request","Talep (Request)"],["tss","TSS"],["bom","BOM (MKT)"],["aksesuar","Aksesuar konf."],
+    ["do","DO çıktısı"],["kitting","Depo kitting"],["teslim","Malzeme teslim"],["izin","Kurulum izni"],
+    ["kurulum","Kurulum"],["enerji","Enerji (Power)"],["nms","NMS"],["pat","PAT"] ]}
+};
+const PHASES = ["Faz-1","Faz-2","Faz-1-2","Faz-3"];
+const pipeOf = ph => ph === "Faz-3" ? "F3" : "F12";
+const STATE_LBL = { done:"Tamamlandı", plan:"Planlı", late:"Gecikti", wait:"Bekliyor", na:"Gerek yok" };
+const STATUS_LBL = { done:"Tamamlandı", progress:"Devam ediyor", notstarted:"Başlamadı" };
+const KEY = "sahaTakip.v1";
+
+const pad = n => String(n).padStart(2,"0");
+const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const TODAY = iso(new Date());
+const addDays = (s,n) => { const d = new Date(s+"T00:00:00"); d.setDate(d.getDate()+n); return iso(d); };
+const fmt = s => s ? s.slice(8,10)+"."+s.slice(5,7)+"."+s.slice(0,4) : "";
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").toLocaleUpperCase("tr").replace(/\s+/g," ").trim();
+const uid = () => Math.random().toString(36).slice(2,10);
+
+let DB = { sites: [], log: [], updated: null };
+function load(){ try { const r = localStorage.getItem(KEY); if (r) DB = Object.assign({sites:[],log:[]}, JSON.parse(r)); } catch(e) {} }
+function save(){ DB.updated = new Date().toISOString(); try { localStorage.setItem(KEY, JSON.stringify(DB)); } catch(e) { toast("Tarayıcı belleğine kaydedilemedi — yedek almayı unutma."); } }
+
+/* step: {st:''|'done'|'na', plan:'YYYY-MM-DD', planText:'', actual:'YYYY-MM-DD', text:''} */
+function rangeEnd(t){
+  if (!t) return "";
+  let m = String(t).match(/^(\d{1,2})\s*[.\-]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return m[4]+"-"+pad(m[3])+"-"+pad(m[2]);
+  m = String(t).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return m[3]+"-"+pad(m[2])+"-"+pad(m[1]);
+  return "";
+}
+function planEnd(s){ return (s.planText && rangeEnd(s.planText)) || s.plan || ""; }
+function stepState(s){
+  if (!s) return "wait";
+  if (s.st === "na") return "na";
+  if (s.st === "done" || s.actual) return "done";
+  const e = planEnd(s);
+  if (e) return e < TODAY ? "late" : "plan";
+  return "wait";
+}
+function planLabel(s){
+  const m = s.planText && String(s.planText).match(/^(\d{1,2})\s*[.\-]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) return pad(m[1]) + "–" + pad(m[2]) + "." + pad(m[3]) + "." + m[4];
+  return s.planText || fmt(s.plan);
+}
+
+function summary(site){
+  const steps = PIPES[site.pipe].steps;
+  let done = 0, na = 0, late = 0, cur = null, next = null, last = "";
+  const states = steps.map(([k,l]) => {
+    const s = site.steps[k] || {}; const st = stepState(s);
+    if (st === "done") { done++; if (s.actual && s.actual > last) last = s.actual; }
+    else if (st === "na") na++;
+    else {
+      if (!cur) cur = { k, l, st };
+      if (st === "late") late++;
+      const e = planEnd(s);
+      if (e && (!next || e < next.e)) next = { k, l, e, txt: planLabel(s), st };
+    }
+    return st;
+  });
+  const n = steps.length - na;
+  const pct = n ? Math.round(done / n * 100) : 100;
+  const status = !cur ? "done" : done === 0 ? "notstarted" : "progress";
+  return { states, done, na, late, cur, next, pct, status, last };
+}
+
+/* ---------- excel import ---------- */
+function serialToIso(n){ const ms = Math.round((n - 25569) * 86400000); const d = new Date(ms); return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate()); }
+function cell(v){
+  if (v === null || v === undefined || v === "") return { k:"wait" };
+  if (v instanceof Date) return { k:"date", d: iso(v) };
+  if (typeof v === "number") return v > 30000 && v < 80000 ? { k:"date", d: serialToIso(v) } : { k:"text", t:String(v) };
+  const t = String(v).trim(), u = t.toLowerCase();
+  if (!t) return { k:"wait" };
+  if (/^(done|ok|tamam|tamamlandı)$/i.test(u)) return { k:"done" };
+  if (/^(not need|n\/a|na|gerek yok|-)$/i.test(u)) return { k:"na" };
+  if (/^(waiting|not started|not ready|pending|bekliyor)$/i.test(u)) return { k:"wait" };
+  let m = t.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return { k:"date", d:m[0].slice(0,10) };
+  m = t.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/); if (m) return { k:"date", d:m[3]+"-"+pad(m[2])+"-"+pad(m[1]) };
+  if (rangeEnd(t)) return { k:"range", t };
+  return { k:"text", t };
+}
+function fromActual(v){
+  const c = cell(v);
+  if (c.k === "date") return { st:"", actual:c.d };
+  if (c.k === "done") return { st:"done" };
+  if (c.k === "na") return { st:"na" };
+  if (c.k === "text" || c.k === "range") return { st:"", text:c.t };
+  return { st:"" };
+}
+function withPlan(step, v){
+  const c = cell(v);
+  if (c.k === "date") step.plan = c.d;
+  else if (c.k === "range") step.planText = c.t;
+  else if (c.k === "done" && !step.actual && step.st !== "na") step.st = "done";
+  else if (c.k === "na" && !step.actual) step.st = "na";
+  else if (c.k === "text") step.planText = c.t;
+  return step;
+}
+const H = s => String(s ?? "").toLowerCase().replace(/\s+/g," ").trim();
+function sheetRows(ws){
+  let maxR = 0, maxC = 0;
+  for (const k in ws) { if (k[0] === "!") continue; const a = XLSX.utils.decode_cell(k); if (a.r > maxR) maxR = a.r; if (a.c > maxC) maxC = a.c; }
+  return XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null, range:{ s:{r:0,c:0}, e:{r:maxR,c:maxC} } });
+}
+function parseF3(rows, hr){
+  const h = rows[hr].map(H), col = name => h.indexOf(name);
+  const C = n => { const i = col(n); return r => i < 0 ? null : r[i]; };
+  const g = {
+    phase:C("phase"), prio:C("priority"), region:C("region"), center:C("center"), name:C("site name"), sid:C("site id"),
+    request:C("request"), subcon:C("subcon"), po:C("po information"), work:C("worktype"), equip:C("equipment type"),
+    dtype:C("directin type"), dpcs:C("direction pcs"), batch:C("batch"), tssP:C("tss plan"), tssA:C("actual tss"),
+    bom:C("bom actual from mkt"), acc:C("accessory materials configuration actual from technical"), doOut:C("do output"),
+    doNo:C("do"), kit:C("warehouse kitting"), del:C("material delivery"), perm:C("installation permit from customer"),
+    instP:C("installation plan"), instA:C("actual installation"), instS:C("installation status"),
+    pow:C("power status"), nms:C("nms status"), pat:C("pat status")
+  };
+  const out = [];
+  for (let i = hr+1; i < rows.length; i++){
+    const r = rows[i]; const name = g.name(r); if (!name || !String(name).trim()) continue;
+    const st = {};
+    st.request = fromActual(g.request(r));
+    st.tss = withPlan(fromActual(g.tssA(r)), g.tssP(r));
+    st.bom = fromActual(g.bom(r)); st.aksesuar = fromActual(g.acc(r));
+    st.do = fromActual(g.doOut(r));
+    const dn = g.doNo(r); const dc = cell(dn);
+    if (dn != null && dc.k === "text") st.do.text = String(dn);
+    st.kitting = fromActual(g.kit(r)); st.teslim = fromActual(g.del(r)); st.izin = fromActual(g.perm(r));
+    st.kurulum = withPlan(fromActual(g.instA(r)), g.instP(r));
+    if (!st.kurulum.actual && cell(g.instS(r)).k === "done") st.kurulum.st = "done";
+    st.enerji = fromActual(g.pow(r)); st.nms = fromActual(g.nms(r));
+    const pc = cell(g.pat(r)); let note = "";
+    if (pc.k === "date") st.pat = { st:"", actual:pc.d }; else if (pc.k === "done") st.pat = { st:"done" };
+    else { st.pat = { st:"" }; if (pc.k === "text") note = pc.t; }
+    const sid = cell(g.sid(r)).k === "text" ? String(g.sid(r)) : "";
+    out.push({ phase:"Faz-3", pipe:"F3", region:clean(g.region(r)), center:clean(g.center(r)), name:clean(name), siteId:sid,
+      type:"", equip:clean(g.equip(r)), excelNote:note, steps:st,
+      info:{ "Öncelik":clean(g.prio(r)), "Taşeron":waitBlank(g.subcon(r)), "PO":waitBlank(g.po(r)), "İş tipi":clean(g.work(r)),
+        "Ekipman":clean(g.equip(r)), "Yön tipi":clean(g.dtype(r)), "Yön adedi":clean(g.dpcs(r)), "Batch":waitBlank(g.batch(r)) } });
+  }
+  return out;
+}
+function parseF12(rows, hr){
+  const h1 = rows[hr].map(H), h2 = (rows[hr+1]||[]).map(H);
+  const i1 = n => h1.indexOf(n), i2 = n => h2.indexOf(n);
+  const tip = i1("saha tipi");
+  const idx = { region:i1("bölge"), name:i1("saha adı"), phase:i1("faz"), type:tip, dir:tip>=0?tip+1:-1, equip:tip>=0?tip+2:-1,
+    yon:i1("yön sayısı"), kabin:i1("kabin"), shelf:i1("shelf"), ad:i1("add-drop"), surveyRef:i2("survey"),
+    siparis:i2("sipariş tarihi"), fatura:i2("fatura kesim tarihi"), survey:i2("survey tarihi"), ekspertiz:i2("ekspertiz tarihi"),
+    sevkiyat:i2("saha sevkiyat"), montaj:i2("saha montaj"), kabul:i2("geçici kabul tarihi") };
+  const v = (r,k) => idx[k] >= 0 ? r[idx[k]] : null;
+  const out = [];
+  for (let i = hr+2; i < rows.length; i++){
+    const r = rows[i]; const name = v(r,"name"); if (!name || !String(name).trim()) continue;
+    const st = {};
+    for (const [k] of PIPES.F12.steps) st[k] = fromActual(v(r,k));
+    let ph = clean(v(r,"phase")).replace(/\s+/g,"") || "Faz-2";
+    if (/^faz-?1-?2$/i.test(ph)) ph = "Faz-1-2"; else if (/^faz-?1$/i.test(ph)) ph = "Faz-1"; else if (/^faz-?2$/i.test(ph)) ph = "Faz-2";
+    if (!PHASES.includes(ph)) ph = "Faz-2";
+    out.push({ phase:ph, pipe:"F12", region:clean(v(r,"region")), center:clean(v(r,"region")), name:clean(name), siteId:"",
+      type:clean(v(r,"type")), equip:clean(v(r,"equip")), excelNote:"", steps:st,
+      info:{ "Saha tipi":clean(v(r,"type")), "Yön":clean(v(r,"dir")), "Ekipman":clean(v(r,"equip")), "Yön sayısı":clean(v(r,"yon")),
+        "Kabin":clean(v(r,"kabin")), "Shelf":clean(v(r,"shelf")), "Add-Drop":clean(v(r,"ad")), "Survey ref.":clean(v(r,"surveyRef")) } });
+  }
+  return out;
+}
+const clean = v => v == null ? "" : String(v).replace(/\s+/g," ").trim();
+const waitBlank = v => { const c = clean(v); return /^(waiting|not ready|not started)$/i.test(c) ? "" : c; };
+
+function parseWorkbook(buf){
+  const wb = XLSX.read(buf, { type:"array" });
+  for (const sn of wb.SheetNames){
+    const rows = sheetRows(wb.Sheets[sn]);
+    for (let r = 0; r < Math.min(rows.length, 6); r++){
+      const h = (rows[r]||[]).map(H);
+      if (h.includes("site name")) return { kind:"F3", sites:parseF3(rows, r) };
+      if (h.includes("saha adı")) return { kind:"F12", sites:parseF12(rows, r) };
+    }
+  }
+  return null;
+}
+function mergeImport(kind, incoming, fileName){
+  // same name can appear twice in a sheet (e.g. different case) -> number repeats
+  const keyed = arr => { const seen = {}; return arr.map(s => { const k = norm(s.region) + "|" + norm(s.name); seen[k] = (seen[k]||0) + 1; return [seen[k] > 1 ? k + "#" + seen[k] : k, s]; }); };
+  const old = new Map(keyed(DB.sites.filter(s => s.pipe === kind)));
+  const inKeys = new Map(keyed(incoming).map(([k,s]) => [s,k]));
+  const keyOf = s => inKeys.get(s);
+  const firstTime = old.size === 0, now = new Date().toISOString();
+  let changed = 0, added = 0;
+  const merged = incoming.map(n => {
+    const o = old.get(keyOf(n));
+    const site = Object.assign({ id: o ? o.id : uid(), note: "", blocked:false, history: [] }, n);
+    if (o){
+      old.delete(keyOf(n));
+      site.note = o.note || ""; site.blocked = !!o.blocked; site.history = o.history || [];
+      // keep manual-only fields if excel is empty
+      if (!site.siteId && o.siteId) site.siteId = o.siteId;
+      const diffs = [];
+      for (const [k,l] of PIPES[kind].steps){
+        const a = stepState(o.steps[k]), b = stepState(site.steps[k]);
+        if (a !== b) diffs.push(l+": "+STATE_LBL[a]+" → "+STATE_LBL[b]);
+      }
+      if (diffs.length){ changed++; site.history.unshift({ t:now, m:"Excel: "+diffs.join(", ") }); }
+    } else if (!firstTime){ added++; site.history.unshift({ t:now, m:"Excel ile eklendi" }); }
+    return site;
+  });
+  // sites only in old (manually added or removed from excel) are kept
+  const kept = [...old.values()];
+  DB.sites = DB.sites.filter(s => s.pipe !== kind).concat(merged, kept);
+  const msg = (kind === "F3" ? "Faz-3" : "Faz-1-2") + " dosyası yüklendi (" + fileName + "): " + merged.length + " saha" +
+    (firstTime ? "" : ", " + changed + " sahada ilerleme, " + added + " yeni");
+  DB.log.unshift({ t:now, m:msg });
+  return msg;
+}
+async function importFiles(files){
+  if (!window.XLSX){ toast("Excel kütüphanesi yüklenemedi (internet bağlantısı gerekli)."); return; }
+  const msgs = [];
+  for (const f of files){
+    try {
+      const res = parseWorkbook(await f.arrayBuffer());
+      if (!res || !res.sites.length){ msgs.push(f.name + ": tanınan başlık bulunamadı"); continue; }
+      msgs.push(mergeImport(res.kind, res.sites, f.name));
+    } catch(e){ console.error(e); msgs.push(f.name + ": okunamadı"); }
+  }
+  save(); buildFilters(); render(); toast(msgs.join("\n"), 5000);
+}
+
+/* ---------- export ---------- */
+function exportExcel(){
+  if (!window.XLSX){ toast("Excel kütüphanesi yüklenemedi."); return; }
+  const wb = XLSX.utils.book_new();
+  for (const kind of ["F12","F3"]){
+    const sites = DB.sites.filter(s => s.pipe === kind); if (!sites.length) continue;
+    const rows = sites.map(s => {
+      const sm = summary(s);
+      const r = { "Faz":s.phase, "Bölge":s.region, "Merkez":s.center, "Saha":s.name, "Site ID":s.siteId };
+      for (const [k,v] of Object.entries(s.info||{})) r[k] = v;
+      r["Durum"] = STATUS_LBL[sm.status]; r["İlerleme %"] = sm.pct; r["Mevcut aşama"] = sm.cur ? sm.cur.l : "—";
+      for (const [k,l] of PIPES[kind].steps){
+        const st = s.steps[k] || {};
+        r[l+" · durum"] = STATE_LBL[stepState(st)];
+        r[l+" · plan"] = planLabel(st);
+        r[l+" · gerçekleşen"] = fmt(st.actual);
+        if (st.text) r[l+" · bilgi"] = st.text;
+      }
+      r["Engel"] = s.blocked ? "Evet" : ""; r["Not"] = [s.note, s.excelNote].filter(Boolean).join(" | ");
+      return r;
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), kind === "F3" ? "Faz-3" : "Faz-1-2");
+  }
+  if (!wb.SheetNames.length){ toast("Aktarılacak veri yok."); return; }
+  XLSX.writeFile(wb, "saha-ilerleme-" + TODAY + ".xlsx");
+}
+function download(name, text, type){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+
+/* ---------- filters ---------- */
+const F = { phase:"", region:"", center:"", status:"", q:"", view:"ozet", sort:"progress", dir:1 };
+try { Object.assign(F, JSON.parse(localStorage.getItem(KEY+".ui")||"{}"), { q:"" }); } catch(e){}
+function saveUi(){ try { localStorage.setItem(KEY+".ui", JSON.stringify({ phase:F.phase, view:F.view, sort:F.sort, dir:F.dir })); } catch(e){} }
+const $ = id => document.getElementById(id);
+
+function buildFilters(){
+  const counts = {}; DB.sites.forEach(s => counts[s.phase] = (counts[s.phase]||0)+1);
+  $("phaseChips").innerHTML = [["","Tümü",DB.sites.length]].concat(PHASES.filter(p => counts[p]).map(p => [p,p,counts[p]]))
+    .map(([v,l,n]) => `<button class="chip" data-ph="${v}" aria-pressed="${F.phase===v}">${l}<span class="n">${n}</span></button>`).join("");
+  const regions = [...new Set(DB.sites.filter(s => !F.phase || s.phase === F.phase).map(s => s.region).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"tr"));
+  if (F.region && !regions.includes(F.region)) F.region = "";
+  $("fRegion").innerHTML = `<option value="">Tüm bölgeler</option>` + regions.map(r => `<option ${r===F.region?"selected":""}>${esc(r)}</option>`).join("");
+  const centers = [...new Set(DB.sites.filter(s => (!F.phase || s.phase === F.phase) && (!F.region || s.region === F.region)).map(s => s.center).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"tr"));
+  if (F.center && !centers.includes(F.center)) F.center = "";
+  $("fCenter").innerHTML = `<option value="">Tüm merkezler</option>` + centers.map(r => `<option ${r===F.center?"selected":""}>${esc(r)}</option>`).join("");
+  $("fCenter").classList.toggle("hidden", centers.length < 2);
+  $("fStatus").value = F.status;
+  $("dlRegion").innerHTML = [...new Set(DB.sites.map(s => s.region).filter(Boolean))].map(r => `<option value="${esc(r)}">`).join("");
+  $("filters").classList.toggle("hidden", !DB.sites.length);
+}
+function filtered(){
+  const q = norm(F.q);
+  return DB.sites.filter(s => {
+    if (F.phase && s.phase !== F.phase) return false;
+    if (F.region && s.region !== F.region) return false;
+    if (F.center && s.center !== F.center) return false;
+    if (F.status){
+      const sm = s._sm;
+      if (F.status === "late" ? !sm.late : F.status === "blocked" ? !(s.blocked) : sm.status !== F.status) return false;
+    }
+    if (q && !norm([s.name,s.siteId,s.center,s.region,s.note,s.excelNote].join(" ")).includes(q)) return false;
+    return true;
+  });
+}
+
+/* ---------- render ---------- */
+function render(){
+  DB.sites.forEach(s => s._sm = summary(s));
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.view === F.view));
+  const sub = DB.updated ? "Son güncelleme: " + new Date(DB.updated).toLocaleString("tr-TR",{dateStyle:"medium",timeStyle:"short"}) : "DWDM saha kurulumları · Faz 1–3";
+  $("subtitle").textContent = sub;
+  const m = $("main");
+  if (!DB.sites.length){ m.innerHTML = emptyState(); bindDrop(); return; }
+  const list = filtered();
+  m.innerHTML = F.view === "sahalar" ? viewTable(list) : F.view === "plan" ? viewPlan(list) : viewSummary(list);
+}
+function emptyState(){
+  return `<div class="card hero">
+    <svg width="48" height="48" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#1b64be"/><path d="M7 19l4.5-5 3.5 3 6-7" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h2>Saha listelerini yükle</h2>
+    <p>Faz-1-2 ve Faz-3 Excel dosyalarını seç ya da buraya sürükle. Dosyalar yalnızca bu tarayıcıda işlenir, hiçbir yere gönderilmez.</p>
+    <div class="drop" id="drop"><button class="btn primary" onclick="$('fImport').click()">⬆ Excel dosyalarını seç</button>
+    <p class="small" style="margin:10px 0 0">İki dosyayı aynı anda seçebilirsin. Sonra güncel Excel'i tekrar yüklediğinde, hangi sahada hangi aşamanın ilerlediği geçmişe yazılır.</p></div>
+    <p class="small" style="margin-top:14px">Önceden aldığın bir yedek varsa: <a href="#" onclick="$('fRestore').click();return false">yedek yükle</a></p>
+  </div>`;
+}
+function bindDrop(){
+  const d = $("drop"); if (!d) return;
+  d.addEventListener("dragover", e => { e.preventDefault(); d.classList.add("over"); });
+  d.addEventListener("dragleave", () => d.classList.remove("over"));
+  d.addEventListener("drop", e => { e.preventDefault(); d.classList.remove("over"); importFiles([...e.dataTransfer.files]); });
+}
+function badge(st, txt){ return `<span class="badge b-${st}"><i class="dot st-${st}"></i>${esc(txt ?? STATE_LBL[st])}</span>`; }
+function strip(s){
+  return `<div class="strip">` + PIPES[s.pipe].steps.map(([k,l],i) => {
+    const st = s._sm.states[i], d = s.steps[k] || {};
+    const extra = st === "done" ? (d.actual ? " · " + fmt(d.actual) : "") : (planLabel(d) ? " · plan " + planLabel(d) : "");
+    return `<i class="st-${st}" data-tip="${esc(l + ": " + STATE_LBL[st] + extra)}"></i>`;
+  }).join("") + `</div>`;
+}
+function legendStates(){
+  return `<div class="legend">${["done","plan","late","wait","na"].map(s => `<span><i class="dot st-${s}"></i>${STATE_LBL[s]}</span>`).join("")}</div>`;
+}
+
+function viewSummary(list){
+  const n = list.length, c = { done:0, progress:0, notstarted:0 }; let late = 0, blocked = 0, pctSum = 0;
+  list.forEach(s => { c[s._sm.status]++; if (s._sm.late) late++; if (s.blocked) blocked++; pctSum += s._sm.pct; });
+  const avg = n ? Math.round(pctSum / n) : 0;
+  const kpi = (lbl, val, sub, dot, meter) => `<div class="card kpi"><div class="lbl">${dot ? `<i class="dot st-${dot}"></i>` : ""}${lbl}</div><div class="val">${val}${sub ? ` <small>${sub}</small>` : ""}</div>${meter != null ? `<div class="meter"><i style="width:${meter}%"></i></div>` : ""}</div>`;
+  const pc = x => n ? "%" + Math.round(x / n * 100) : "";
+  let html = `<div class="grid kpis">
+    ${kpi("Saha", n, "", "", null)}
+    ${kpi("Ortalama ilerleme", "%" + avg, "", "", avg)}
+    ${kpi("Tamamlandı", c.done, pc(c.done), "done", null)}
+    ${kpi("Devam ediyor", c.progress, pc(c.progress), "plan", null)}
+    ${kpi("Başlamadı", c.notstarted, pc(c.notstarted), "wait", null)}
+    ${kpi("Gecikmesi olan", late, blocked ? "· " + blocked + " engel" : "", "late", null)}
+  </div><div class="grid two">`;
+
+  // stage completion
+  let st = `<div class="card"><h2>Aşama bazında tamamlanma</h2><p class="sub">Her aşamayı tamamlamış (veya gerek olmayan) saha sayısı</p>`;
+  for (const kind of ["F12","F3"]){
+    const ss = list.filter(s => s.pipe === kind); if (!ss.length) continue;
+    st += `<div class="pipehead">${PIPES[kind].name} · ${ss.length} saha</div><div class="stages">`;
+    PIPES[kind].steps.forEach(([k,l],i) => {
+      let d = 0, lt = 0, pl = 0; ss.forEach(s => { const x = s._sm.states[i]; if (x === "done" || x === "na") d++; else if (x === "late") lt++; else if (x === "plan") pl++; });
+      const w = d / ss.length * 100;
+      st += `<div class="nm" title="${esc(l)}">${esc(l)}</div><div class="track" data-tip="${esc(l)}\nTamamlandı: ${d} / ${ss.length}\nPlanlı: ${pl}\nGecikti: ${lt}"><i style="width:${w}%"></i></div><div class="ct">${d} / ${ss.length}</div>`;
+    });
+    st += `</div>`;
+  }
+  st += `</div>`;
+
+  // regions
+  const reg = {}; list.forEach(s => { const r = s.region || "—"; (reg[r] ||= { done:0, progress:0, notstarted:0, n:0, p:0 }); reg[r][s._sm.status]++; reg[r].n++; reg[r].p += s._sm.pct; });
+  const regs = Object.entries(reg).sort((a,b) => b[1].n - a[1].n);
+  const max = Math.max(...regs.map(r => r[1].n), 1);
+  let rg = `<div class="card"><h2>Bölgelere göre durum</h2><p class="sub">Saha sayısı ve ortalama ilerleme</p>
+    <div class="legend"><span><i class="dot st-done"></i>Tamamlandı</span><span><i class="dot st-plan"></i>Devam ediyor</span><span><i class="dot st-wait"></i>Başlamadı</span></div><div class="regions">`;
+  for (const [r,v] of regs){
+    const seg = (k,cls) => v[k] ? `<i class="${cls}" style="width:${v[k]/max*100}%" data-tip="${esc(r)} · ${STATUS_LBL[k]}: ${v[k]}"></i>` : "";
+    rg += `<div class="nm" style="font-size:13px;cursor:pointer" data-region="${esc(r)}">${esc(r)}</div><div class="stack">${seg("done","st-done")}${seg("progress","st-plan")}${seg("notstarted","st-wait")}</div><div class="ct">${v.n} · %${Math.round(v.p/v.n)}</div>`;
+  }
+  rg += `</div></div>`;
+  html += st + `<div class="grid" style="align-content:start">` + rg;
+
+  // upcoming / late
+  const items = planItems(list);
+  const lateI = items.filter(x => x.st === "late").slice(0, 6);
+  const soon = items.filter(x => x.st === "plan" && x.e <= addDays(TODAY, 14)).slice(0, 6);
+  html += `<div class="card"><h2>Dikkat</h2><p class="sub">Geciken ve önümüzdeki 14 gün içinde planlı işler</p>
+    ${lateI.length || soon.length ? `<ul class="list">${lateI.concat(soon).map(planLi).join("")}</ul>` : `<div class="empty">Geciken ya da yakın tarihli planlı iş yok.</div>`}
+    ${items.length > lateI.length + soon.length ? `<button class="btn sm" data-go="plan" style="margin-top:8px">Tüm planlar →</button>` : ""}</div>`;
+  html += `</div></div>`;
+
+  // activity
+  const feed = [];
+  DB.log.slice(0, 10).forEach(x => feed.push({ t:x.t, m:x.m }));
+  const ids = new Set(list.map(s => s.id));
+  DB.sites.forEach(s => ids.has(s.id) && (s.history||[]).slice(0, 5).forEach(h => feed.push({ t:h.t, m:h.m, s })));
+  feed.sort((a,b) => b.t.localeCompare(a.t));
+  html += `<div class="card" style="margin-top:12px"><h2>Son değişiklikler</h2><p class="sub">Excel yüklemeleri ve elle yapılan güncellemeler</p>
+    ${feed.length ? `<ul class="list">${feed.slice(0,12).map(f => `<li ${f.s ? `data-site="${f.s.id}"` : `style="cursor:default"`}><span class="when">${esc(new Date(f.t).toLocaleString("tr-TR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}))}</span><div>${f.s ? `<div class="ttl">${esc(f.s.name)} <span class="meta">${esc(f.s.phase)}</span></div>` : ""}<div class="${f.s ? "meta" : ""}">${esc(f.m)}</div></div></li>`).join("")}</ul>` : `<div class="empty">Henüz değişiklik yok.</div>`}</div>`;
+  return html;
+}
+function planItems(list){
+  const items = [];
+  list.forEach(s => PIPES[s.pipe].steps.forEach(([k,l],i) => {
+    const st = s._sm.states[i]; if (st !== "plan" && st !== "late") return;
+    const d = s.steps[k]; items.push({ s, k, l, st, e:planEnd(d), txt:planLabel(d) });
+  }));
+  items.sort((a,b) => a.e.localeCompare(b.e));
+  return items;
+}
+function planLi(x){
+  const days = Math.round((new Date(x.e) - new Date(TODAY)) / 864e5);
+  const rel = x.st === "late" ? `${-days} gün gecikti` : days === 0 ? "bugün" : `${days} gün sonra`;
+  return `<li data-site="${x.s.id}"><span class="when">${esc(x.txt)}</span><div style="flex:1;min-width:0"><div class="ttl">${esc(x.s.name)}</div><div class="meta">${esc(x.l)} · ${esc(x.s.phase)} · ${esc(x.s.region)}</div></div>${badge(x.st, rel)}</li>`;
+}
+function viewPlan(list){
+  const items = planItems(list);
+  const g = [["Gecikenler", x => x.st === "late"], ["Bu hafta (7 gün)", x => x.st === "plan" && x.e <= addDays(TODAY,7)],
+    ["Sonraki 30 gün", x => x.st === "plan" && x.e > addDays(TODAY,7) && x.e <= addDays(TODAY,30)], ["Daha ileri", x => x.st === "plan" && x.e > addDays(TODAY,30)]];
+  const noPlan = list.filter(s => s._sm.cur && s._sm.cur.st === "wait");
+  let html = `<div class="grid two">`;
+  html += `<div class="grid" style="align-content:start">` + g.map(([t,f]) => { const a = items.filter(f); return `<div class="card"><h2>${t} <span class="meta" style="color:var(--ink-2);font-weight:400">· ${a.length}</span></h2>${a.length ? `<ul class="list">${a.map(planLi).join("")}</ul>` : `<div class="empty">Kayıt yok.</div>`}</div>`; }).join("") + `</div>`;
+  const byStage = {}; noPlan.forEach(s => { const k = PIPES[s.pipe].name + " › " + s._sm.cur.l; (byStage[k] ||= []).push(s); });
+  html += `<div class="card" style="align-self:start"><h2>Planı olmayan bekleyen sahalar</h2><p class="sub">Mevcut aşamasına tarih girilmemiş sahalar, aşamaya göre</p>` +
+    (noPlan.length ? Object.entries(byStage).sort((a,b) => b[1].length - a[1].length).map(([k,a]) => `<div class="pipehead">${esc(k)} · ${a.length}</div><ul class="list">${a.slice(0,8).map(s => `<li data-site="${s.id}"><div style="flex:1"><div class="ttl">${esc(s.name)}</div><div class="meta">${esc(s.phase)} · ${esc(s.region)}${s.excelNote||s.note ? " · " + esc(s.note || s.excelNote) : ""}</div></div></li>`).join("")}${a.length > 8 ? `<li style="cursor:default"><span class="meta">+${a.length-8} saha daha — Sahalar sekmesinde filtrele</span></li>` : ""}</ul>`).join("") : `<div class="empty">Hepsinin planı var.</div>`) + `</div></div>`;
+  return html;
+}
+function viewTable(list){
+  const key = { name:s => norm(s.name), phase:s => s.phase + norm(s.name), region:s => norm(s.region) + norm(s.name), progress:s => s._sm.pct, stage:s => (s._sm.cur ? PIPES[s.pipe].steps.findIndex(x => x[0] === s._sm.cur.k) : 99), next:s => s._sm.next ? s._sm.next.e : "9999" }[F.sort] || (s => s._sm.pct);
+  const rows = list.slice().sort((a,b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * F.dir; });
+  const th = (k,l,cls="") => `<th data-sort="${k}" class="${cls}">${l} ${F.sort === k ? `<span class="arr">${F.dir > 0 ? "▲" : "▼"}</span>` : ""}</th>`;
+  return `<div class="card tablecard"><div class="tbl-tools"><div><b>${rows.length}</b> <span class="small">saha listeleniyor</span></div>${legendStates().replace('class="legend"','class="legend" style="margin:0"')}</div>
+  <div class="tbl-wrap"><table><thead><tr>${th("name","Saha")}${th("phase","Faz","hide-m")}${th("region","Bölge / Merkez","hide-m")}${th("stage","Mevcut aşama")}<th class="hide-m">Aşamalar</th>${th("progress","İlerleme")}${th("next","Sonraki plan","hide-m")}<th class="hide-m">Not</th></tr></thead><tbody>
+  ${rows.map(s => { const sm = s._sm; return `<tr data-site="${s.id}">
+    <td><div class="nm">${esc(s.name)}</div><div class="id">${esc(s.siteId || s.info?.["Saha tipi"] || "")}${s.blocked ? ` ${badge("block","Engel")}` : ""}</div></td>
+    <td class="hide-m">${esc(s.phase)}</td>
+    <td class="hide-m">${esc(s.region)}${s.center && s.center !== s.region ? `<div class="id">${esc(s.center)}</div>` : ""}</td>
+    <td>${sm.cur ? `<div style="font-size:13px">${esc(sm.cur.l)}</div>${badge(sm.cur.st)}` : badge("done","Tamamlandı")}</td>
+    <td class="hide-m">${strip(s)}</td>
+    <td><div class="pbar"><div class="b"><i style="width:${sm.pct}%"></i></div><span>%${sm.pct}</span></div></td>
+    <td class="hide-m">${sm.next ? `<div style="font-size:13px">${esc(sm.next.txt)}</div><div class="id">${esc(sm.next.l)}</div>` : `<span class="id">—</span>`}</td>
+    <td class="hide-m"><div class="note" title="${esc(s.note || s.excelNote)}">${esc(s.note || s.excelNote)}</div></td></tr>`; }).join("")}
+  </tbody></table>${rows.length ? "" : `<div class="empty" style="padding:16px">Filtreye uyan saha yok.</div>`}</div></div>`;
+}
+
+/* ---------- drawer ---------- */
+let openId = null;
+function openSite(id){
+  const s = DB.sites.find(x => x.id === id); if (!s) return;
+  openId = id; s._sm = summary(s); const sm = s._sm;
+  const info = Object.entries(s.info || {}).filter(([k,v]) => v !== "" && v != null);
+  $("drawer").innerHTML = `<div class="dhead"><div style="flex:1;min-width:0"><h3>${esc(s.name)}</h3>
+      <div class="meta">${esc(s.phase)} · ${esc(s.region)}${s.center && s.center !== s.region ? " · " + esc(s.center) : ""}${s.siteId ? " · " + esc(s.siteId) : ""}</div>
+      <div class="pbar" style="margin-top:8px;max-width:260px"><div class="b"><i style="width:${sm.pct}%"></i></div><span>%${sm.pct}</span></div></div>
+      <button class="btn sm" id="dClose" aria-label="Kapat">✕</button></div>
+    <div class="dbody">
+      <div class="dsec"><h4>Aşamalar</h4>${legendStates()}<div class="steps">${PIPES[s.pipe].steps.map(([k,l],i) => stepRow(s,k,l,sm.states[i])).join("")}</div></div>
+      <div class="dsec"><h4>Not ve engel</h4>
+        <label class="check" style="margin-bottom:8px"><input type="checkbox" id="dBlocked" ${s.blocked ? "checked" : ""}> Bu sahada engel / sorun var</label>
+        <textarea id="dNote" placeholder="Örn. malzeme eksik, müşteri izni bekleniyor…">${esc(s.note)}</textarea>
+        ${s.excelNote ? `<p class="small" style="margin:6px 0 0">Excel notu: ${esc(s.excelNote)}</p>` : ""}</div>
+      <div class="dsec"><h4>Saha bilgileri</h4><div class="info">
+        <div><b>Site ID</b><input data-f="siteId" value="${esc(s.siteId)}"></div>
+        <div><b>Bölge</b><input data-f="region" value="${esc(s.region)}"></div>
+        <div><b>Merkez</b><input data-f="center" value="${esc(s.center)}"></div>
+        ${info.map(([k,v]) => `<div><b>${esc(k)}</b>${esc(v)}</div>`).join("")}</div></div>
+      <div class="dsec"><h4>Geçmiş</h4>${(s.history||[]).length ? `<ul class="hist">${s.history.slice(0,40).map(h => `<li><time>${esc(new Date(h.t).toLocaleString("tr-TR",{dateStyle:"short",timeStyle:"short"}))}</time><span>${esc(h.m)}</span></li>`).join("")}</ul>` : `<div class="empty">Henüz kayıt yok.</div>`}</div>
+      <div class="dsec"><button class="btn sm danger" id="dDelete">Sahayı sil</button></div>
+    </div>`;
+  $("drawer").classList.add("open"); $("scrim").classList.add("open"); $("drawer").setAttribute("aria-hidden","false");
+}
+function stepRow(s,k,l,st){
+  const d = s.steps[k] || {};
+  const sel = d.st === "na" ? "na" : (d.st === "done" || d.actual) ? "done" : "open";
+  return `<div class="step" data-k="${k}"><i class="mk st-${st}" data-tip="${STATE_LBL[st]}"></i>
+    <div class="lbl">${esc(l)}${d.planText ? `<small>Plan: ${esc(d.planText)}</small>` : ""}${d.text ? `<small>${esc(d.text)}</small>` : ""}</div>
+    <div class="c-st"><span class="cap">Durum</span><select data-a="st"><option value="open" ${sel==="open"?"selected":""}>${st === "late" ? "Gecikti" : st === "plan" ? "Planlı" : "Bekliyor"}</option><option value="done" ${sel==="done"?"selected":""}>Tamamlandı</option><option value="na" ${sel==="na"?"selected":""}>Gerek yok</option></select></div>
+    <div class="c-pl"><span class="cap">Plan tarihi</span><input type="date" data-a="plan" value="${esc(d.plan || rangeEnd(d.planText) || "")}"></div>
+    <div class="c-ac"><span class="cap">Gerçekleşen</span><input type="date" data-a="actual" value="${esc(d.actual || "")}"></div></div>`;
+}
+function closeDrawer(){ $("drawer").classList.remove("open"); $("scrim").classList.remove("open"); $("drawer").setAttribute("aria-hidden","true"); openId = null; }
+function logSite(s, m){ (s.history ||= []).unshift({ t:new Date().toISOString(), m }); }
+
+$("drawer").addEventListener("change", e => {
+  const s = DB.sites.find(x => x.id === openId); if (!s) return;
+  const t = e.target, row = t.closest(".step");
+  if (row){
+    const k = row.dataset.k, l = PIPES[s.pipe].steps.find(x => x[0] === k)[1];
+    const d = (s.steps[k] ||= {}); const before = stepState(d);
+    if (t.dataset.a === "st"){
+      if (t.value === "done"){ d.st = "done"; if (!d.actual) d.actual = TODAY; }
+      else if (t.value === "na"){ d.st = "na"; d.actual = ""; }
+      else { d.st = ""; d.actual = ""; }
+    } else if (t.dataset.a === "plan"){ d.plan = t.value; d.planText = ""; }
+    else if (t.dataset.a === "actual"){ d.actual = t.value; if (t.value && d.st === "na") d.st = ""; if (!t.value && d.st === "done") d.st = ""; }
+    const after = stepState(d);
+    const det = t.dataset.a === "plan" ? " (plan " + (fmt(d.plan) || "silindi") + ")" : d.actual && after === "done" ? " (" + fmt(d.actual) + ")" : "";
+    logSite(s, l + ": " + (before !== after ? STATE_LBL[before] + " → " + STATE_LBL[after] : STATE_LBL[after]) + det);
+  } else if (t.id === "dBlocked"){ s.blocked = t.checked; logSite(s, t.checked ? "Engel işaretlendi" : "Engel kaldırıldı"); }
+  else if (t.id === "dNote"){ s.note = t.value; logSite(s, "Not: " + (t.value || "(silindi)")); }
+  else if (t.dataset.f){ const f = t.dataset.f; const v = t.value.trim(); if (s[f] !== v){ logSite(s, ({siteId:"Site ID",region:"Bölge",center:"Merkez"})[f] + ": " + v); s[f] = v; } buildFilters(); }
+  save(); render(); openSite(s.id);
+});
+$("drawer").addEventListener("click", e => {
+  if (e.target.id === "dClose") closeDrawer();
+  if (e.target.id === "dDelete"){
+    const s = DB.sites.find(x => x.id === openId);
+    if (s && confirm(s.name + " silinsin mi?")){ DB.sites = DB.sites.filter(x => x !== s); DB.log.unshift({ t:new Date().toISOString(), m:s.name + " (" + s.phase + ") silindi" }); save(); closeDrawer(); buildFilters(); render(); }
+  }
+});
+$("scrim").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && openId) closeDrawer(); });
+
+/* ---------- events ---------- */
+$("main").addEventListener("click", e => {
+  const r = e.target.closest("[data-site]"); if (r){ openSite(r.dataset.site); return; }
+  const th = e.target.closest("th[data-sort]");
+  if (th){ const k = th.dataset.sort; if (F.sort === k) F.dir *= -1; else { F.sort = k; F.dir = k === "progress" ? -1 : 1; } saveUi(); render(); return; }
+  const go = e.target.closest("[data-go]"); if (go){ F.view = go.dataset.go; saveUi(); render(); window.scrollTo(0,0); return; }
+  const rg = e.target.closest("[data-region]"); if (rg){ F.region = rg.dataset.region; F.view = "sahalar"; saveUi(); buildFilters(); render(); }
+});
+document.querySelector(".tabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (!t) return; F.view = t.dataset.view; saveUi(); render(); });
+$("phaseChips").addEventListener("click", e => { const c = e.target.closest(".chip"); if (!c) return; F.phase = c.dataset.ph; saveUi(); buildFilters(); render(); });
+$("fRegion").onchange = e => { F.region = e.target.value; buildFilters(); render(); };
+$("fCenter").onchange = e => { F.center = e.target.value; render(); };
+$("fStatus").onchange = e => { F.status = e.target.value; render(); };
+$("fSearch").oninput = e => { F.q = e.target.value; render(); };
+$("bImport").onclick = () => $("fImport").click();
+$("fImport").onchange = e => { const f = [...e.target.files]; e.target.value = ""; if (f.length) importFiles(f); };
+$("bExport").onclick = exportExcel;
+$("bBackup").onclick = () => { const clean = JSON.parse(JSON.stringify(DB, (k,v) => k === "_sm" ? undefined : v)); download("saha-takip-yedek-" + TODAY + ".json", JSON.stringify(clean, null, 1), "application/json"); };
+$("bRestore").onclick = () => $("fRestore").click();
+$("fRestore").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.sites)) throw 0;
+    if (DB.sites.length && !confirm("Mevcut veri yedektekiyle değiştirilecek. Devam?")) return;
+    DB = Object.assign({ sites:[], log:[] }, d); save(); buildFilters(); render(); toast(DB.sites.length + " saha yedekten yüklendi.");
+  } catch(_){ toast("Geçerli bir yedek dosyası değil."); }
+};
+$("bNew").onclick = () => { $("newForm").reset(); $("dNew").showModal(); };
+$("dNew").addEventListener("close", () => {
+  if ($("dNew").returnValue !== "ok") return;
+  const fd = new FormData($("newForm")); const ph = fd.get("phase");
+  const s = { id:uid(), phase:ph, pipe:pipeOf(ph), region:String(fd.get("region")).trim(), center:String(fd.get("center")).trim() || String(fd.get("region")).trim(),
+    name:String(fd.get("name")).trim(), siteId:String(fd.get("siteId")).trim(), type:"", equip:"", excelNote:"", steps:{}, info:{}, note:"", blocked:false, history:[] };
+  if (!s.name) return;
+  logSite(s, "Elle eklendi"); DB.sites.push(s); save(); buildFilters(); render(); openSite(s.id);
+});
+$("bTheme").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const nx = cur === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = nx; try { localStorage.setItem(KEY+".theme", nx); } catch(e){}
+};
+try { const t = localStorage.getItem(KEY+".theme"); if (t) document.documentElement.dataset.theme = t; } catch(e){}
+
+/* tooltip */
+const tip = $("tip");
+document.addEventListener("pointermove", e => {
+  const el = e.target.closest && e.target.closest("[data-tip]");
+  if (!el){ tip.style.display = "none"; return; }
+  tip.textContent = el.dataset.tip; tip.style.display = "block";
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(e.clientX + 12, innerWidth - w - 8) + "px";
+  tip.style.top = (e.clientY + 16 + h > innerHeight ? e.clientY - h - 10 : e.clientY + 16) + "px";
+});
+document.addEventListener("pointerdown", () => tip.style.display = "none");
+let tt; function toast(m, ms = 3000){ const t = $("toast"); t.textContent = m; t.style.display = "block"; t.style.whiteSpace = "pre-line"; clearTimeout(tt); tt = setTimeout(() => t.style.display = "none", ms); }
+
+window.addEventListener("load", () => { if (!window.XLSX){ $("bExport").disabled = true; } });
+load(); buildFilters(); render();
+</script>
+</body>
+</html>
